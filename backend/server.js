@@ -23,7 +23,6 @@ const io = socketIo(server, {
 app.use(cors());
 app.use(express.json());
 
-
 mongoose
   .connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
@@ -212,8 +211,10 @@ const updateCoinPrice = async (coin, type, amount) => {
 };
 
 app.post("/api/transaction", authenticateToken, async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  let user = null;
+  let originalBalance = 0;
+  let originalHoldings = null;
+
   try {
     const { coinId, type, amount } = req.body;
     const userId = req.user._id;
@@ -221,44 +222,62 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
     console.log("Transaction request:", { userId, coinId, type, amount });
 
     if (!coinId || !type || amount <= 0) {
-      throw new Error(
-        "Invalid input: coinId, type, and amount (> 0) are required"
-      );
+      return res.status(400).json({
+        message: "Invalid input: coinId, type, and amount (> 0) are required",
+      });
     }
 
-    const user = await User.findById(userId).session(session);
-    const coin = await Coin.findOne({ symbol: coinId }).session(session);
+    user = await User.findById(userId);
+    const coin = await Coin.findOne({ symbol: coinId });
 
     if (!user || !coin) {
-      throw new Error("User or Coin not found");
+      return res.status(404).json({ message: "User or Coin not found" });
     }
 
     console.log("User and coin found:", { userId: user._id, coinId: coin._id });
 
     const totalPrice = amount * coin.price;
+    originalBalance = user.balance;
+    originalHoldings = new Map(user.holdings);
 
     if (type === "buy") {
       if (user.balance < totalPrice) {
-        throw new Error("Insufficient funds");
+        return res.status(400).json({ message: "Insufficient balance" });
       }
       user.balance -= totalPrice;
       const currentHolding = user.holdings.get(coin.symbol) || 0;
       user.holdings.set(coin.symbol, currentHolding + amount);
-      await updateCoinPrice(coin, "buy", amount);
     } else if (type === "sell") {
       const currentHolding = user.holdings.get(coin.symbol) || 0;
       if (currentHolding < amount) {
-        throw new Error("Insufficient coin balance");
+        return res.status(400).json({ message: "Insufficient coin balance" });
       }
       user.balance += totalPrice;
       user.holdings.set(coin.symbol, currentHolding - amount);
       if (user.holdings.get(coin.symbol) === 0) {
         user.holdings.delete(coin.symbol);
       }
-      await updateCoinPrice(coin, "sell", amount);
     } else {
-      throw new Error("Invalid transaction type");
+      return res.status(400).json({ message: "Invalid transaction type" });
     }
+
+    // Save changes and perform additional checks
+    await user.save();
+
+    // Verify user balance and holdings after save
+    const updatedUser = await User.findById(userId);
+    if (updatedUser.balance !== user.balance) {
+      throw new Error("Balance inconsistency detected");
+    }
+
+    for (const [symbol, amount] of user.holdings) {
+      if (updatedUser.holdings.get(symbol) !== amount) {
+        throw new Error("Holdings inconsistency detected");
+      }
+    }
+
+    // If we've made it this far, update the coin price
+    await updateCoinPrice(coin, type, amount);
 
     const transaction = new Transaction({
       userId: user._id,
@@ -269,24 +288,36 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
       timestamp: new Date(),
     });
 
-    await transaction.save({ session });
-    await user.save({ session });
-
-    await session.commitTransaction();
+    await transaction.save();
 
     console.log("Transaction successful:", transaction);
-    console.log("Updated user data:", user);
+    console.log("Updated user data:", updatedUser);
 
     // Emit user update to all connected clients
-    io.emit("userUpdate", user);
+    io.emit("userUpdate", updatedUser);
 
-    res.status(200).json({ message: "Transaction successful", user });
+    res
+      .status(200)
+      .json({ message: "Transaction successful", user: updatedUser });
   } catch (error) {
-    await session.abortTransaction();
     console.error("Transaction error:", error);
-    res.status(400).json({ message: error.message });
-  } finally {
-    session.endSession();
+
+    // If an error occurred, attempt to rollback changes
+    if (user && originalBalance !== null && originalHoldings !== null) {
+      try {
+        user.balance = originalBalance;
+        user.holdings = originalHoldings;
+        await user.save();
+        console.log("Changes rolled back due to error");
+      } catch (rollbackError) {
+        console.error("Error during rollback:", rollbackError);
+      }
+    }
+
+    // Ensure we always send a response, even if rollback fails
+    res.status(500).json({
+      message: "An error occurred during the transaction. Please try again.",
+    });
   }
 });
 
@@ -305,53 +336,53 @@ app.get("/api/transactions", authenticateToken, async (req, res) => {
 });
 
 // Function to generate random price fluctuations
-const generatePriceFluctuation = () => {
-  return (Math.random() * 0.6 - 0.3) / 100; // Random number between -0.3% and 0.3%
-};
+// const generatePriceFluctuation = () => {
+//   return (Math.random() * 0.6 - 0.3) / 100; // Random number between -0.3% and 0.3%
+// };
 
-// Update coin prices every 2 seconds
-setInterval(async () => {
-  try {
-    const coins = await Coin.find();
-    for (let coin of coins) {
-      const priceChange = generatePriceFluctuation();
-      const newPrice = coin.price * (1 + priceChange);
+// // Update coin prices every 2 seconds
+// setInterval(async () => {
+//   try {
+//     const coins = await Coin.find();
+//     for (let coin of coins) {
+//       const priceChange = generatePriceFluctuation();
+//       const newPrice = coin.price * (1 + priceChange);
 
-      coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
-      if (coin.priceHistory.length > 1440) {
-        // Keep only the last 24 hours (1440 minutes)
-        coin.priceHistory.shift();
-      }
+//       coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
+//       if (coin.priceHistory.length > 1440) {
+//         // Keep only the last 24 hours (1440 minutes)
+//         coin.priceHistory.shift();
+//       }
 
-      const oldPrice = coin.priceHistory[0].price;
-      const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
+//       const oldPrice = coin.priceHistory[0].price;
+//       const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
 
-      // Update the coin in the database using findOneAndUpdate
-      await Coin.findOneAndUpdate(
-        { _id: coin._id },
-        {
-          $set: {
-            price: newPrice,
-            priceHistory: coin.priceHistory,
-            priceChange24h: priceChange24h,
-          },
-        },
-        { upsert: true }
-      );
+//       // Update the coin in the database using findOneAndUpdate
+//       await Coin.findOneAndUpdate(
+//         { _id: coin._id },
+//         {
+//           $set: {
+//             price: newPrice,
+//             priceHistory: coin.priceHistory,
+//             priceChange24h: priceChange24h,
+//           },
+//         },
+//         { upsert: true }
+//       );
 
-      // Emit the updated price via socket.io
-      io.emit("priceUpdate", {
-        _id: coin._id,
-        symbol: coin.symbol,
-        price: newPrice,
-        priceChange24h: priceChange24h,
-      });
-      console.log(`Updated ${coin.name} price to $${newPrice}`);
-    }
-  } catch (error) {
-    console.error("Error updating coin prices:", error);
-  }
-}, 2000);
+//       // Emit the updated price via socket.io
+//       io.emit("priceUpdate", {
+//         _id: coin._id,
+//         symbol: coin.symbol,
+//         price: newPrice,
+//         priceChange24h: priceChange24h,
+//       });
+//       console.log(`Updated ${coin.name} price to $${newPrice}`);
+//     }
+//   } catch (error) {
+//     console.error("Error updating coin prices:", error);
+//   }
+// }, 2000);
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
