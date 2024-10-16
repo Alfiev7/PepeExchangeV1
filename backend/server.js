@@ -204,7 +204,7 @@ const generatePriceFluctuation = () => {
 };
 
 const updateCoinPrice = async (coin, type, amount) => {
-  const priceImpact = 0.00001 * amount; 
+  const priceImpact = 0.0000001 * amount; 
   const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
   coin.price *= multiplier;
 
