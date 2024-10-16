@@ -196,10 +196,31 @@ app.get("/api/coins", async (req, res) => {
   }
 });
 
+const generatePriceFluctuation = () => {
+  // Generates a random price fluctuation between -1% and +1%
+  const min = -0.01;
+  const max = 0.01;
+  return Math.random() * (max - min) + min;
+};
+
 const updateCoinPrice = async (coin, type, amount) => {
-  const priceImpact = 0.00001 * amount; // 0.01% price impact per unit
+  const priceImpact = 0.00001 * amount; 
   const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
   coin.price *= multiplier;
+
+  const newPrice = coin.price * (1 + generatePriceFluctuation());
+  coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
+
+  if (coin.priceHistory.length > 1440) {
+    coin.priceHistory.shift();
+  }
+
+  const oldPrice = coin.priceHistory[0].price;
+  const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
+
+  coin.price = newPrice;
+  coin.priceChange24h = priceChange24h;
+
   await coin.save();
 
   io.emit("priceUpdate", {
@@ -261,10 +282,8 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
       return res.status(400).json({ message: "Invalid transaction type" });
     }
 
-    // Save changes and perform additional checks
     await user.save();
 
-    // Verify user balance and holdings after save
     const updatedUser = await User.findById(userId);
     if (updatedUser.balance !== user.balance) {
       throw new Error("Balance inconsistency detected");
@@ -276,7 +295,6 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
       }
     }
 
-    // If we've made it this far, update the coin price
     await updateCoinPrice(coin, type, amount);
 
     const transaction = new Transaction({
@@ -293,7 +311,6 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
     console.log("Transaction successful:", transaction);
     console.log("Updated user data:", updatedUser);
 
-    // Emit user update to all connected clients
     io.emit("userUpdate", updatedUser);
 
     res
@@ -302,7 +319,6 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
   } catch (error) {
     console.error("Transaction error:", error);
 
-    // If an error occurred, attempt to rollback changes
     if (user && originalBalance !== null && originalHoldings !== null) {
       try {
         user.balance = originalBalance;
@@ -314,7 +330,6 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
       }
     }
 
-    // Ensure we always send a response, even if rollback fails
     res.status(500).json({
       message: "An error occurred during the transaction. Please try again.",
     });
