@@ -122,6 +122,41 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error("Authentication error"));
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) return next(new Error("Authentication error"));
+    socket.userId = decoded._id;
+    next();
+  });
+});
+
+// Store connected sockets
+const connectedSockets = new Map();
+
+io.on("connection", (socket) => {
+  console.log("New client connected:", socket.userId);
+  connectedSockets.set(socket.userId, socket);
+
+  socket.on("disconnect", () => {
+    console.log("Client disconnected:", socket.userId);
+    connectedSockets.delete(socket.userId);
+  });
+});
+
+// Function to emit user-specific updates
+const emitUserUpdate = async (userId) => {
+  const socket = connectedSockets.get(userId.toString());
+  if (socket) {
+    const updatedUser = await User.findById(userId).select("-password");
+    socket.emit("userUpdate", updatedUser);
+  }
+};
+
 // Routes
 app.post("/api/signup", async (req, res) => {
   try {
@@ -204,7 +239,7 @@ const generatePriceFluctuation = () => {
 };
 
 const updateCoinPrice = async (coin, type, amount) => {
-  const priceImpact = 0.0000001 * amount; 
+  const priceImpact = 0.00001 * amount;
   const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
   coin.price *= multiplier;
 
@@ -311,7 +346,16 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
     console.log("Transaction successful:", transaction);
     console.log("Updated user data:", updatedUser);
 
-    io.emit("userUpdate", updatedUser);
+    // Emit user-specific update
+    await emitUserUpdate(userId);
+
+    // Emit price update to all connected clients
+    io.emit("priceUpdate", {
+      _id: coin._id,
+      symbol: coin.symbol,
+      price: coin.price,
+      priceChange24h: coin.priceChange24h,
+    });
 
     res
       .status(200)
