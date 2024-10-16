@@ -440,7 +440,7 @@ export default function Marketplace() {
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
             <p className="text-gray-400 text-sm">
-              © 2023 PepeExchange. All rights reserved.
+              © 2024 PepeExchange. All rights reserved.
             </p>
             <div className="flex space-x-4"></div>
           </div>
