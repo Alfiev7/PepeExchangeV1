@@ -37,7 +37,7 @@ export default function Marketplace() {
   const [notification, setNotification] = useState<Notification | null>(null);
   const [buyAmounts, setBuyAmounts] = useState<{ [key: string]: string }>({});
   const [sellAmounts, setSellAmounts] = useState<{ [key: string]: string }>({});
-  const [loading, setIsLoading] = useState<boolean>(false);
+  const [loading, setisLoading] = useState<boolean>(false);
   const router = useRouter();
 
   const fetchUserData = useCallback(async () => {
@@ -95,9 +95,7 @@ export default function Marketplace() {
 
     fetchData();
 
-    const socket = io(process.env.NEXT_PUBLIC_API_URL || "", {
-      query: { token },
-    });
+    const socket = io(process.env.NEXT_PUBLIC_API_URL || "");
 
     socket.on("priceUpdate", (updatedCoins) => {
       setCoins((prevCoins) =>
@@ -122,12 +120,9 @@ export default function Marketplace() {
     socket.on("userUpdate", (updatedUser) => {
       console.log("Received user update:", updatedUser);
       setUser((prevUser) => {
-        if (prevUser && prevUser._id === updatedUser._id) {
-          console.log("Updating user state:", updatedUser);
-          return updatedUser;
-        }
-        console.log("Ignoring update for different user");
-        return prevUser;
+        console.log("Previous user state:", prevUser);
+        console.log("New user state:", updatedUser);
+        return updatedUser;
       });
     });
 
@@ -147,7 +142,7 @@ export default function Marketplace() {
     type: "buy" | "sell",
     amount: number
   ) => {
-    setIsLoading(true);
+    setisLoading(true);
     const token = localStorage.getItem("token");
     if (!token || !user) return;
 
@@ -156,7 +151,7 @@ export default function Marketplace() {
         message: "Please enter a valid amount greater than 0",
         type: "error",
       });
-      setIsLoading(false);
+      setisLoading(false);
       return;
     }
 
@@ -177,7 +172,7 @@ export default function Marketplace() {
 
       if (!res.ok) {
         const errorData = await res.json();
-        setIsLoading(false);
+        setisLoading(false);
         throw new Error(errorData.message || "Transaction failed");
       }
 
@@ -226,7 +221,7 @@ export default function Marketplace() {
         type: "error",
       });
     } finally {
-      setIsLoading(false);
+      setisLoading(false);
     }
   };
 
@@ -398,7 +393,6 @@ export default function Marketplace() {
                           handleSellAmountChange(coin._id, e.target.value)
                         }
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
-                        
                         placeholder="Amount to sell"
                         min="0"
                         step="0.01"
@@ -438,7 +432,7 @@ export default function Marketplace() {
 
       <footer className="bg-gray-800 bg-opacity-50 backdrop-filter backdrop-blur-lg mt-8">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between  items-center">
             <p className="text-gray-400 text-sm">
               © 2024 PepeExchange. All rights reserved.
             </p>
