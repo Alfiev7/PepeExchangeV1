@@ -239,33 +239,51 @@ const generatePriceFluctuation = () => {
 };
 
 const updateCoinPrice = async (coin, type, amount) => {
-  const priceImpact = 0.00001 * amount;
-  const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
-  coin.price *= multiplier;
+  try {
+    // Log current price before fluctuation
+    console.log(`Original price for ${coin.symbol}: $${coin.price}`);
 
-  const newPrice = coin.price * (1 + generatePriceFluctuation());
-  coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
+    // Adjust price based on the transaction
+    const priceImpact = 0.00001 * amount;  // Adjust impact multiplier as needed
+    const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
+    coin.price *= multiplier;
 
-  if (coin.priceHistory.length > 1440) {
-    coin.priceHistory.shift();
+    // Apply random fluctuation
+    const newPrice = coin.price * (1 + generatePriceFluctuation());
+    
+    // Add price history entry
+    coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
+    if (coin.priceHistory.length > 1440) {
+      // Keep only the last 1440 entries (for 24 hours of minute-based data)
+      coin.priceHistory.shift();
+    }
+
+    // Calculate the 24h price change percentage
+    const oldPrice = coin.priceHistory[0].price;
+    const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
+
+    // Save updated price and price change to the coin
+    coin.price = newPrice;
+    coin.priceChange24h = priceChange24h;
+    await coin.save();
+
+    // Log after price update
+    console.log(`Updated price for ${coin.symbol}: $${coin.price}, 24h change: ${coin.priceChange24h}%`);
+
+    // Emit price update to all clients
+    io.emit("priceUpdate", {
+      _id: coin._id,
+      symbol: coin.symbol,
+      price: coin.price,
+      priceChange24h: coin.priceChange24h,
+    });
+    
+  } catch (error) {
+    console.error("Error updating coin price:", error);
   }
-
-  const oldPrice = coin.priceHistory[0].price;
-  const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
-
-  coin.price = newPrice;
-  coin.priceChange24h = priceChange24h;
-
-  await coin.save();
-
-  io.emit("priceUpdate", {
-    _id: coin._id,
-    symbol: coin.symbol,
-    price: coin.price,
-    priceChange24h: coin.priceChange24h,
-  });
 };
 
+// Trigger price update after transaction
 app.post("/api/transaction", authenticateToken, async (req, res) => {
   let user = null;
   let originalBalance = 0;
@@ -319,17 +337,7 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
 
     await user.save();
 
-    const updatedUser = await User.findById(userId);
-    if (updatedUser.balance !== user.balance) {
-      throw new Error("Balance inconsistency detected");
-    }
-
-    for (const [symbol, amount] of user.holdings) {
-      if (updatedUser.holdings.get(symbol) !== amount) {
-        throw new Error("Holdings inconsistency detected");
-      }
-    }
-
+    // Trigger coin price update after transaction
     await updateCoinPrice(coin, type, amount);
 
     const transaction = new Transaction({
@@ -344,22 +352,11 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
     await transaction.save();
 
     console.log("Transaction successful:", transaction);
-    console.log("Updated user data:", updatedUser);
 
     // Emit user-specific update
     await emitUserUpdate(userId);
 
-    // Emit price update to all connected clients
-    io.emit("priceUpdate", {
-      _id: coin._id,
-      symbol: coin.symbol,
-      price: coin.price,
-      priceChange24h: coin.priceChange24h,
-    });
-
-    res
-      .status(200)
-      .json({ message: "Transaction successful", user: updatedUser });
+    res.status(200).json({ message: "Transaction successful", user });
   } catch (error) {
     console.error("Transaction error:", error);
 
