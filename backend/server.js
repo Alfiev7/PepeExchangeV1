@@ -18,6 +18,7 @@ const io = socketIo(server, {
     ],
     methods: ["GET", "POST"],
   },
+  transports: ["websocket", "polling"],
 });
 
 app.use(cors());
@@ -26,7 +27,7 @@ app.use(express.json());
 const socketToUser = new Map();
 
 io.on("connection", (socket) => {
-  console.log("New client connected");
+  console.log("New client connected:", socket.id);
 
   socket.on("authenticate", (token) => {
     try {
@@ -40,7 +41,7 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     socketToUser.delete(socket.id);
-    console.log("Client disconnected");
+    console.log("Client disconnected:", socket.id);
   });
 });
 
@@ -261,8 +262,6 @@ const updateCoinPrice = async (coin, type, amount) => {
     priceChange24h: coin.priceChange24h,
   });
 };
-
-
 
 app.post("/api/transaction", authenticateToken, async (req, res) => {
   let user = null;
