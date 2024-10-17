@@ -23,6 +23,37 @@ const io = socketIo(server, {
 app.use(cors());
 app.use(express.json());
 
+const socketToUser = new Map();
+
+io.on("connection", (socket) => {
+  console.log("New client connected");
+
+  socket.on("authenticate", (token) => {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      socketToUser.set(socket.id, decoded._id);
+      console.log(`Socket ${socket.id} authenticated for user ${decoded._id}`);
+    } catch (error) {
+      console.error("Authentication error:", error);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    socketToUser.delete(socket.id);
+    console.log("Client disconnected");
+  });
+});
+
+const emitUserUpdate = (userId, userData) => {
+  const userSockets = Array.from(socketToUser.entries())
+    .filter(([_, id]) => id.toString() === userId.toString())
+    .map(([socketId, _]) => socketId);
+
+  userSockets.forEach((socketId) => {
+    io.to(socketId).emit("userUpdate", userData);
+  });
+};
+
 mongoose
   .connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
@@ -231,6 +262,8 @@ const updateCoinPrice = async (coin, type, amount) => {
   });
 };
 
+
+
 app.post("/api/transaction", authenticateToken, async (req, res) => {
   let user = null;
   let originalBalance = 0;
@@ -311,7 +344,7 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
     console.log("Transaction successful:", transaction);
     console.log("Updated user data:", updatedUser);
 
-    io.emit("userUpdate", updatedUser);
+    emitUserUpdate(updatedUser._id.toString(), updatedUser);
 
     res
       .status(200)
