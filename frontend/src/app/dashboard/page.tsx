@@ -192,7 +192,7 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center space-x-4">
               <Link href="/marketplace" className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition duration-150 ease-in-out">
-                Marketplace
+                Market
               </Link>
               <button
                 onClick={handleLogout}
@@ -352,7 +352,7 @@ export default function Dashboard() {
           <div className="flex flex-wrap justify-between items-center">
             <p className="text-gray-400 text-sm w-full sm:w-auto mb-2 sm:mb-0">© 2023 CryptoSimulator. All rights reserved.</p>
             <div className="flex space-x-4">
-              <Link href="/marketplace" className="text-gray-400 hover:text-white transition duration-150 ease-in-out">Marketplace</Link>
+              <Link href="/marketplace" className="text-gray-400 hover:text-white transition duration-150 ease-in-out">Market</Link>
               <Link href="/portfolio" className="text-gray-400 hover:text-white transition duration-150 ease-in-out">Portfolio</Link>
             </div>
           </div>
