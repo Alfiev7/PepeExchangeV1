@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import io from "socket.io-client";
+// import io from "socket.io-client";
 
 type Coin = {
   _id: string;
@@ -32,104 +32,104 @@ type Notification = {
 };
 
 export default function Marketplace() {
-  const [user, setUser] = useState<User | null>(null);
-  const [coins, setCoins] = useState<Coin[]>([]);
+  // const [user, setUser] = useState<User | null>(null);
+  // const [coins, setCoins] = useState<Coin[]>([]);
   const [notification, setNotification] = useState<Notification | null>(null);
-  const [buyAmounts, setBuyAmounts] = useState<{ [key: string]: string }>({});
-  const [sellAmounts, setSellAmounts] = useState<{ [key: string]: string }>({});
-  const [loading, setisLoading] = useState<boolean>(false);
+  // const [buyAmounts, setBuyAmounts] = useState<{ [key: string]: string }>({});
+  // const [sellAmounts, setSellAmounts] = useState<{ [key: string]: string }>({});
+  // const [loading, setisLoading] = useState<boolean>(false);
   const router = useRouter();
 
-  const fetchUserData = useCallback(async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+  // const fetchUserData = useCallback(async () => {
+  //   const token = localStorage.getItem("token");
+  //   if (!token) {
+  //     router.push("/login");
+  //     return;
+  //   }
 
-    try {
-      const userRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/user`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (!userRes.ok) {
-        throw new Error("Failed to fetch user data");
-      }
-      const userData = await userRes.json();
-      setUser(userData);
-    } catch (error) {
-      console.error("Error fetching user data:", error);
-      router.push("/login");
-    }
-  }, [router]);
+  //   try {
+  //     const userRes = await fetch(
+  //       `${process.env.NEXT_PUBLIC_API_URL}/api/user`,
+  //       {
+  //         headers: { Authorization: `Bearer ${token}` },
+  //       }
+  //     );
+  //     if (!userRes.ok) {
+  //       throw new Error("Failed to fetch user data");
+  //     }
+  //     const userData = await userRes.json();
+  //     setUser(userData);
+  //   } catch (error) {
+  //     console.error("Error fetching user data:", error);
+  //     router.push("/login");
+  //   }
+  // }, [router]);
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+  // useEffect(() => {
+  //   const token = localStorage.getItem("token");
+  //   if (!token) {
+  //     router.push("/login");
+  //     return;
+  //   }
 
-    const fetchData = async () => {
-      try {
-        const [userRes, coinsRes] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/coins`),
-        ]);
-        if (!userRes.ok || !coinsRes.ok) {
-          throw new Error("Failed to fetch data");
-        }
-        const userData = await userRes.json();
-        const coinsData = await coinsRes.json();
-        setUser(userData);
-        setCoins(coinsData);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        router.push("/login");
-      }
-    };
+  //   const fetchData = async () => {
+  //     try {
+  //       const [userRes, coinsRes] = await Promise.all([
+  //         fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user`, {
+  //           headers: { Authorization: `Bearer ${token}` },
+  //         }),
+  //         fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/coins`),
+  //       ]);
+  //       if (!userRes.ok || !coinsRes.ok) {
+  //         throw new Error("Failed to fetch data");
+  //       }
+  //       const userData = await userRes.json();
+  //       const coinsData = await coinsRes.json();
+  //       setUser(userData);
+  //       setCoins(coinsData);
+  //     } catch (error) {
+  //       console.error("Error fetching data:", error);
+  //       router.push("/login");
+  //     }
+  //   };
 
-    fetchData();
+  //   fetchData();
 
-    const socket = io(process.env.NEXT_PUBLIC_API_URL || "");
+  //   const socket = io(process.env.NEXT_PUBLIC_API_URL || "");
 
-    socket.on("priceUpdate", (updatedCoins) => {
-      setCoins((prevCoins) =>
-        prevCoins.map((coin) => {
-          if (Array.isArray(updatedCoins)) {
-            const updatedCoin = updatedCoins.find((c) => c._id === coin._id);
-            return updatedCoin ? { ...coin, ...updatedCoin } : coin;
-          } else if (
-            updatedCoins &&
-            typeof updatedCoins === "object" &&
-            "_id" in updatedCoins
-          ) {
-            return updatedCoins._id === coin._id
-              ? { ...coin, ...updatedCoins }
-              : coin;
-          }
-          return coin;
-        })
-      );
-    });
+  //   socket.on("priceUpdate", (updatedCoins) => {
+  //     setCoins((prevCoins) =>
+  //       prevCoins.map((coin) => {
+  //         if (Array.isArray(updatedCoins)) {
+  //           const updatedCoin = updatedCoins.find((c) => c._id === coin._id);
+  //           return updatedCoin ? { ...coin, ...updatedCoin } : coin;
+  //         } else if (
+  //           updatedCoins &&
+  //           typeof updatedCoins === "object" &&
+  //           "_id" in updatedCoins
+  //         ) {
+  //           return updatedCoins._id === coin._id
+  //             ? { ...coin, ...updatedCoins }
+  //             : coin;
+  //         }
+  //         return coin;
+  //       })
+  //     );
+  //   });
 
-    socket.on("userUpdate", (updatedUser) => {
-      console.log("Received user update:", updatedUser);
-      setUser((prevUser) => {
-        console.log("Previous user state:", prevUser);
-        console.log("New user state:", updatedUser);
-        return updatedUser;
-      });
-    });
+  //   socket.on("userUpdate", (updatedUser) => {
+  //     console.log("Received user update:", updatedUser);
+  //     setUser((prevUser) => {
+  //       console.log("Previous user state:", prevUser);
+  //       console.log("New user state:", updatedUser);
+  //       return updatedUser;
+  //     });
+  //   });
 
-    return () => {
-      socket.disconnect();
-    };
-  }, [router, fetchUserData]);
+  //   return () => {
+  //     socket.disconnect();
+  //   };
+  // }, [router, fetchUserData]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -137,115 +137,115 @@ export default function Marketplace() {
     router.push("/login");
   };
 
-  const handleTransaction = async (
-    coinId: string,
-    type: "buy" | "sell",
-    amount: number
-  ) => {
-    setisLoading(true);
-    const token = localStorage.getItem("token");
-    if (!token || !user) return;
+  // const handleTransaction = async (
+  //   coinId: string,
+  //   type: "buy" | "sell",
+  //   amount: number
+  // ) => {
+  //   setisLoading(true);
+  //   const token = localStorage.getItem("token");
+  //   if (!token || !user) return;
 
-    if (isNaN(amount) || amount <= 0) {
-      setNotification({
-        message: "Please enter a valid amount greater than 0",
-        type: "error",
-      });
-      setisLoading(false);
-      return;
-    }
+  //   if (isNaN(amount) || amount <= 0) {
+  //     setNotification({
+  //       message: "Please enter a valid amount greater than 0",
+  //       type: "error",
+  //     });
+  //     setisLoading(false);
+  //     return;
+  //   }
 
-    console.log("Transaction request:", { coinId, type, amount });
+  //   console.log("Transaction request:", { coinId, type, amount });
 
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/transaction`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ coinId, type, amount }),
-        }
-      );
+  //   try {
+  //     const res = await fetch(
+  //       `${process.env.NEXT_PUBLIC_API_URL}/api/transaction`,
+  //       {
+  //         method: "POST",
+  //         headers: {
+  //           "Content-Type": "application/json",
+  //           Authorization: `Bearer ${token}`,
+  //         },
+  //         body: JSON.stringify({ coinId, type, amount }),
+  //       }
+  //     );
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        setisLoading(false);
-        throw new Error(errorData.message || "Transaction failed");
-      }
+  //     if (!res.ok) {
+  //       const errorData = await res.json();
+  //       setisLoading(false);
+  //       throw new Error(errorData.message || "Transaction failed");
+  //     }
 
-      const data = await res.json();
-      console.log("Transaction response:", data);
-      setUser(data.user);
-      console.log("Updated user data after transaction:", data.user);
+  //     const data = await res.json();
+  //     console.log("Transaction response:", data);
+  //     setUser(data.user);
+  //     console.log("Updated user data after transaction:", data.user);
 
-      const coin = coins.find((c) => c.symbol === coinId);
-      if (coin) {
-        setNotification({
-          message: `Successfully ${
-            type === "buy" ? "bought" : "sold"
-          } ${amount} of ${coin.name}`,
-          type: "success",
-        });
-      } else {
-        setNotification({
-          message: `Transaction successful`,
-          type: "success",
-        });
-      }
+  //     const coin = coins.find((c) => c.symbol === coinId);
+  //     if (coin) {
+  //       setNotification({
+  //         message: `Successfully ${
+  //           type === "buy" ? "bought" : "sold"
+  //         } ${amount} of ${coin.name}`,
+  //         type: "success",
+  //       });
+  //     } else {
+  //       setNotification({
+  //         message: `Transaction successful`,
+  //         type: "success",
+  //       });
+  //     }
 
-      if (type === "buy") {
-        setBuyAmounts((prev) => ({ ...prev, [coinId]: "" }));
-      } else {
-        setSellAmounts((prev) => ({ ...prev, [coinId]: "" }));
-      }
+  //     if (type === "buy") {
+  //       setBuyAmounts((prev) => ({ ...prev, [coinId]: "" }));
+  //     } else {
+  //       setSellAmounts((prev) => ({ ...prev, [coinId]: "" }));
+  //     }
 
-      // Fetch updated user data after transaction
-      await fetchUserData();
-    } catch (error) {
-      console.error("Transaction error:", error);
-      let errorMessage = "An error occurred. Please try again.";
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (
-        typeof error === "object" &&
-        error !== null &&
-        "message" in error
-      ) {
-        errorMessage = String(error.message);
-      }
-      setNotification({
-        message: errorMessage,
-        type: "error",
-      });
-    } finally {
-      setisLoading(false);
-    }
-  };
+  //     // Fetch updated user data after transaction
+  //     await fetchUserData();
+  //   } catch (error) {
+  //     console.error("Transaction error:", error);
+  //     let errorMessage = "An error occurred. Please try again.";
+  //     if (error instanceof Error) {
+  //       errorMessage = error.message;
+  //     } else if (
+  //       typeof error === "object" &&
+  //       error !== null &&
+  //       "message" in error
+  //     ) {
+  //       errorMessage = String(error.message);
+  //     }
+  //     setNotification({
+  //       message: errorMessage,
+  //       type: "error",
+  //     });
+  //   } finally {
+  //     setisLoading(false);
+  //   }
+  // };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(value);
-  };
+  // const formatCurrency = (value: number) => {
+  //   return new Intl.NumberFormat("en-US", {
+  //     style: "currency",
+  //     currency: "USD",
+  //   }).format(value);
+  // };
 
-  const handleBuyAmountChange = (coinId: string, value: string) => {
-    setBuyAmounts((prev) => ({ ...prev, [coinId]: value }));
-  };
+  // const handleBuyAmountChange = (coinId: string, value: string) => {
+  //   setBuyAmounts((prev) => ({ ...prev, [coinId]: value }));
+  // };
 
-  const handleSellAmountChange = (coinId: string, value: string) => {
-    setSellAmounts((prev) => ({ ...prev, [coinId]: value }));
-  };
+  // const handleSellAmountChange = (coinId: string, value: string) => {
+  //   setSellAmounts((prev) => ({ ...prev, [coinId]: value }));
+  // };
 
-  if (!user || coins.length === 0)
-    return (
-      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white">
-        Loading...
-      </div>
-    );
+  // if (!user || coins.length === 0)
+  //   return (
+  //     <div className="flex items-center justify-center h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white">
+  //       Loading...
+  //     </div>
+  //   );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-gray-100">
