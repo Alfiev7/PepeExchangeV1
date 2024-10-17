@@ -15,7 +15,6 @@ const io = socketIo(server, {
       process.env.FRONTEND_URL || "http://localhost:3000",
       "https://alfalfiev7-migs.vercel.app",
       "https://pepeexchangev1-1.onrender.com",
-      "https://www.pepeexchange.io",
     ],
     methods: ["GET", "POST"],
   },
@@ -121,41 +120,6 @@ const authenticateToken = (req, res, next) => {
     req.user = user;
     next();
   });
-};
-
-io.use((socket, next) => {
-  const token = socket.handshake.auth.token;
-  if (!token) {
-    return next(new Error("Authentication error"));
-  }
-
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-    if (err) return next(new Error("Authentication error"));
-    socket.userId = decoded._id;
-    next();
-  });
-});
-
-// Store connected sockets
-const connectedSockets = new Map();
-
-io.on("connection", (socket) => {
-  console.log("New client connected:", socket.userId);
-  connectedSockets.set(socket.userId, socket);
-
-  socket.on("disconnect", () => {
-    console.log("Client disconnected:", socket.userId);
-    connectedSockets.delete(socket.userId);
-  });
-});
-
-// Function to emit user-specific updates
-const emitUserUpdate = async (userId) => {
-  const socket = connectedSockets.get(userId.toString());
-  if (socket) {
-    const updatedUser = await User.findById(userId).select("-password");
-    socket.emit("userUpdate", updatedUser);
-  }
 };
 
 // Routes
@@ -347,16 +311,7 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
     console.log("Transaction successful:", transaction);
     console.log("Updated user data:", updatedUser);
 
-    // Emit user-specific update
-    await emitUserUpdate(userId);
-
-    // Emit price update to all connected clients
-    io.emit("priceUpdate", {
-      _id: coin._id,
-      symbol: coin.symbol,
-      price: coin.price,
-      priceChange24h: coin.priceChange24h,
-    });
+    io.emit("userUpdate", updatedUser);
 
     res
       .status(200)
