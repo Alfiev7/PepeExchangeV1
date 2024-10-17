@@ -1,10 +1,10 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import io from 'socket.io-client'
-import Image from 'next/image'
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import io from "socket.io-client";
+import Image from "next/image";
 
 type Coin = {
   _id: string;
@@ -13,56 +13,56 @@ type Coin = {
   price: number;
   supply: number;
   priceChange24h: number;
-}
+};
 
 type Transaction = {
   _id: string;
   coinId: string;
-  type: 'buy' | 'sell';
+  type: "buy" | "sell";
   amount: number;
   price: number;
   timestamp: string;
-}
+};
 
 type Holdings = {
   [key: string]: number;
-}
+};
 
 type User = {
   _id: string;
   username: string;
   balance: number;
   holdings: Holdings;
-}
+};
 
 export default function Dashboard() {
-  const [user, setUser] = useState<User | null>(null)
-  const [coins, setCoins] = useState<Coin[]>([])
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
+  const [user, setUser] = useState<User | null>(null);
+  const [coins, setCoins] = useState<Coin[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const fetchData = async () => {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem("token");
     if (!token) {
-      router.push('/login')
-      return
+      router.push("/login");
+      return;
     }
 
     try {
       const [userRes, coinsRes, transactionsRes] = await Promise.all([
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         }),
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/coins`),
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/transactions`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+          headers: { Authorization: `Bearer ${token}` },
+        }),
       ]);
 
       if (!userRes.ok || !coinsRes.ok || !transactionsRes.ok) {
-        throw new Error('Failed to fetch data');
+        throw new Error("Failed to fetch data");
       }
 
       const userData = await userRes.json();
@@ -74,8 +74,8 @@ export default function Dashboard() {
       setTransactions(transactionsData);
       setError(null);
     } catch (error) {
-      console.error('Error fetching data:', error);
-      setError('Failed to load data. Please try again.');
+      console.error("Error fetching data:", error);
+      setError("Failed to load data. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -86,15 +86,22 @@ export default function Dashboard() {
 
     const socket = io(`${process.env.NEXT_PUBLIC_API_URL}`);
 
-    socket.on('priceUpdate', (update) => {
-      setCoins(prevCoins => 
-        prevCoins.map(coin => 
-          coin._id === update._id ? { ...coin, price: update.price, supply: update.supply, priceChange24h: update.priceChange24h } : coin
+    socket.on("priceUpdate", (update) => {
+      setCoins((prevCoins) =>
+        prevCoins.map((coin) =>
+          coin._id === update._id
+            ? {
+                ...coin,
+                price: update.price,
+                supply: update.supply,
+                priceChange24h: update.priceChange24h,
+              }
+            : coin
         )
       );
     });
 
-    socket.on('userUpdate', (updatedUser) => {
+    socket.on("userUpdate", (updatedUser) => {
       setUser(updatedUser);
     });
 
@@ -104,21 +111,27 @@ export default function Dashboard() {
   }, [router]);
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    router.push('/login')
-  }
+    localStorage.removeItem("token");
+    router.push("/login");
+  };
 
   const calculateTotalValue = () => {
     if (!user || !coins.length) return 0;
-    return Object.entries(user.holdings).reduce((total, [coinSymbol, amount]) => {
-      const coin = coins.find(c => c.symbol === coinSymbol)
-      return total + (coin ? coin.price * amount : 0)
-    }, 0)
-  }
+    return Object.entries(user.holdings).reduce(
+      (total, [coinSymbol, amount]) => {
+        const coin = coins.find((c) => c.symbol === coinSymbol);
+        return total + (coin ? coin.price * amount : 0);
+      },
+      0
+    );
+  };
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
-  }
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(value);
+  };
 
   if (loading) {
     return (
@@ -144,7 +157,7 @@ export default function Dashboard() {
               Retry
             </button>
             <button
-              onClick={() => router.push('/login')}
+              onClick={() => router.push("/login")}
               className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-300 ease-in-out w-full"
             >
               Back to Login
@@ -171,8 +184,8 @@ export default function Dashboard() {
     );
   }
 
-  const totalValue = user.balance + calculateTotalValue()
-  const portfolioValue = calculateTotalValue()
+  const totalValue = user.balance + calculateTotalValue();
+  const portfolioValue = calculateTotalValue();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-gray-100">
@@ -333,7 +346,10 @@ export default function Dashboard() {
                           {coin.name}
                         </p>
                         <p className="text-sm text-gray-400 whitespace-nowrap">
-                          {amount.toFixed(4)} {coin.symbol}
+                          {amount.toLocaleString(undefined, {
+                            maximumFractionDigits: 4,
+                          })}{" "}
+                          {coin.symbol}
                         </p>
                       </div>
                       <div className="text-right flex flex-col items-end">

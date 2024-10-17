@@ -351,7 +351,6 @@ export default function Marketplace() {
                     Your holdings:{" "}
                     {user?.holdings[coin.symbol]
                       ? user.holdings[coin.symbol].toLocaleString(undefined, {
-                          minimumFractionDigits: 3,
                           maximumFractionDigits: 3,
                         })
                       : 0}{" "}
