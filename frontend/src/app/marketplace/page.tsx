@@ -342,7 +342,7 @@ export default function Marketplace() {
                     </div>
                   </div>
                   <p className="text-sm text-gray-400 mb-4">
-                    Your holdings: {user.holdings[coin.symbol] || 0}{" "}
+                    Your holdings: {user?.holdings[coin.symbol]?.toFixed(3) || 0}{" "}
                     {coin.symbol}
                   </p>
                   <div className="grid grid-cols-2 gap-4">
