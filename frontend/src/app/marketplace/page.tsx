@@ -272,6 +272,12 @@ export default function Marketplace() {
               >
                 Dashboard
               </Link>
+              <Link
+                href="/shop"
+                className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition duration-150 ease-in-out"
+              >
+                shop
+              </Link>
               <button
                 onClick={handleLogout}
                 className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition duration-150 ease-in-out"
@@ -342,8 +348,8 @@ export default function Marketplace() {
                     </div>
                   </div>
                   <p className="text-sm text-gray-400 mb-4">
-                    Your holdings: {user?.holdings[coin.symbol]?.toFixed(3) || 0}{" "}
-                    {coin.symbol}
+                    Your holdings:{" "}
+                    {user?.holdings[coin.symbol]?.toFixed(3) || 0} {coin.symbol}
                   </p>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
