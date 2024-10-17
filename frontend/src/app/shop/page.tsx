@@ -6,25 +6,25 @@ import Link from "next/link";
 import Image from "next/image";
 // import io from "socket.io-client";
 
-type Coin = {
-  _id: string;
-  name: string;
-  symbol: string;
-  price: number;
-  supply: number;
-  priceChange24h: number;
-};
+// type Coin = {
+//   _id: string;
+//   name: string;
+//   symbol: string;
+//   price: number;
+//   supply: number;
+//   priceChange24h: number;
+// };
 
 type Holdings = {
   [key: string]: number;
 };
 
-type User = {
-  _id: string;
-  username: string;
-  balance: number;
-  holdings: Holdings;
-};
+// type User = {
+//   _id: string;
+//   username: string;
+//   balance: number;
+//   holdings: Holdings;
+// };
 
 type Notification = {
   message: string;
