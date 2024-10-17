@@ -15,6 +15,7 @@ const io = socketIo(server, {
       process.env.FRONTEND_URL || "http://localhost:3000",
       "https://alfalfiev7-migs.vercel.app",
       "https://pepeexchangev1-1.onrender.com",
+      "https://www.pepeexchange.io",
     ],
     methods: ["GET", "POST"],
   },
