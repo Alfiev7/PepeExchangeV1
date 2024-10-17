@@ -15,9 +15,9 @@ import Image from "next/image";
 //   priceChange24h: number;
 // };
 
-type Holdings = {
-  [key: string]: number;
-};
+// type Holdings = {
+//   [key: string]: number;
+// };
 
 // type User = {
 //   _id: string;
