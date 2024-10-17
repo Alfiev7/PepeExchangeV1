@@ -289,7 +289,7 @@ export default function Marketplace() {
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      {/* <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 sm:px-0">
           <div className="bg-gray-800 bg-opacity-50 backdrop-filter backdrop-blur-lg rounded-lg shadow-lg p-6 mb-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
@@ -434,6 +434,9 @@ export default function Marketplace() {
             ))}
           </div>
         </div>
+      </main> */}
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <h1 className="text-2xl text-center">Under construction</h1>
       </main>
 
       <footer className="bg-gray-800 bg-opacity-50 backdrop-filter backdrop-blur-lg mt-8">

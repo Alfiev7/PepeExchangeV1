@@ -333,7 +333,7 @@ export default function Dashboard() {
                           {coin.name}
                         </p>
                         <p className="text-sm text-gray-400 whitespace-nowrap">
-                          {amount} {coin.symbol}
+                          {amount.toFixed(4)} {coin.symbol}
                         </p>
                       </div>
                       <div className="text-right flex flex-col items-end">
