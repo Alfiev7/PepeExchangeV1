@@ -229,11 +229,11 @@ app.get("/api/coins", async (req, res) => {
   }
 });
 
-const generatePriceFluctuation = () => {
-  const min = -0.01;
-  const max = 0.01;
-  return Math.random() * (max - min) + min;
-};
+// const generatePriceFluctuation = () => {
+//   const min = -0.01;
+//   const max = 0.01;
+//   return Math.random() * (max - min) + min;
+// };
 
 const updateCoinPrice = async (coin, type, amount) => {
   const priceImpact = 0.00001 * amount;
@@ -436,9 +436,9 @@ app.get("/api/transactions", authenticateToken, async (req, res) => {
 });
 
 // Function to generate random price fluctuations
-// const generatePriceFluctuation = () => {
-//   return (Math.random() * 0.6 - 0.3) / 100; // Random number between -0.3% and 0.3%
-// };
+function generatePriceFluctuation() {
+  return (Math.random() * 0.6 - 0.3) / 100; // Random number between -0.3% and 0.3%
+}
 
 // Update coin prices every 2 seconds
 
