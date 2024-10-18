@@ -235,29 +235,13 @@ app.get("/api/coins", async (req, res) => {
 //   return Math.random() * (max - min) + min;
 // };
 
-async function fetchLatestCoin(coinId) {
-  return Coin.findById(coinId);
-}
-
-// Debounce function to delay interval updates after transactions
-let debounceTimeout = null;
-const debounceIntervalUpdates = () => {
-  if (debounceTimeout) {
-    clearTimeout(debounceTimeout);
-  }
-  // Debounce interval-based updates by 5 seconds after a transaction
-  debounceTimeout = setTimeout(() => {
-    startPriceUpdates();
-  }, 5000); // 5 seconds
-};
-
-// Update coin price on buy/sell
 const updateCoinPrice = async (coin, type, amount) => {
   const priceImpact = 0.00001 * amount;
   const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
   coin.price *= multiplier;
 
   // Ensure the price doesn't go below 0.0001
+  coin.price = Math.max(coin.price, 0.0001);
 
   const newPrice = coin.price * (1 + generatePriceFluctuation());
   coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
@@ -270,7 +254,6 @@ const updateCoinPrice = async (coin, type, amount) => {
   const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
 
   coin.price = Math.max(newPrice, 0.0001); // Ensure the new price doesn't go below 0.0001
-
   coin.priceChange24h = priceChange24h;
 
   await coin.save();
@@ -281,26 +264,18 @@ const updateCoinPrice = async (coin, type, amount) => {
     price: coin.price,
     priceChange24h: coin.priceChange24h,
   });
-
-  // Debounce the interval updates after a transaction
-  debounceIntervalUpdates();
 };
 
 let priceUpdateInterval;
 
 const startPriceUpdates = () => {
-  if (priceUpdateInterval) {
-    clearInterval(priceUpdateInterval);
-  }
-
   priceUpdateInterval = setInterval(async () => {
     try {
-      const coins = await Coin.find(); // Fetch fresh prices from the DB
+      const coins = await Coin.find();
       for (let coin of coins) {
         const priceChange = generatePriceFluctuation();
         const newPrice = coin.price * (1 + priceChange);
 
-        // Ensure the price history is up to date and consistent
         coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
         if (coin.priceHistory.length > 1440) {
           coin.priceHistory.shift();
@@ -309,7 +284,6 @@ const startPriceUpdates = () => {
         const oldPrice = coin.priceHistory[0].price;
         const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
 
-        // Save the new price back to the DB to ensure the latest price is always used
         await Coin.findOneAndUpdate(
           { _id: coin._id },
           {
@@ -328,13 +302,12 @@ const startPriceUpdates = () => {
           price: newPrice,
           priceChange24h: priceChange24h,
         });
-
         console.log(`Updated ${coin.name} price to $${newPrice}`);
       }
     } catch (error) {
       console.error("Error updating coin prices:", error);
     }
-  }, 3000); // Update prices every 3 seconds
+  }, 3000);
 };
 
 const stopPriceUpdates = () => {
@@ -470,6 +443,51 @@ app.get("/api/transactions", authenticateToken, async (req, res) => {
 function generatePriceFluctuation() {
   return (Math.random() * 0.6 - 0.3) / 100; // Random number between -0.3% and 0.3%
 }
+
+// Update coin prices every 2 seconds
+
+// setInterval(async () => {
+//   try {
+//     const coins = await Coin.find();
+//     for (let coin of coins) {
+//       const priceChange = generatePriceFluctuation();
+//       const newPrice = coin.price * (1 + priceChange);
+
+//       coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
+//       if (coin.priceHistory.length > 1440) {
+//         // Keep only the last 24 hours (1440 minutes)
+//         coin.priceHistory.shift();
+//       }
+
+//       const oldPrice = coin.priceHistory[0].price;
+//       const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
+
+//       // Update the coin in the database using findOneAndUpdate
+//       await Coin.findOneAndUpdate(
+//         { _id: coin._id },
+//         {
+//           $set: {
+//             price: newPrice,
+//             priceHistory: coin.priceHistory,
+//             priceChange24h: priceChange24h,
+//           },
+//         },
+//         { upsert: true }
+//       );
+
+//       // Emit the updated price via socket.io
+//       io.emit("priceUpdate", {
+//         _id: coin._id,
+//         symbol: coin.symbol,
+//         price: newPrice,
+//         priceChange24h: priceChange24h,
+//       });
+//       console.log(`Updated ${coin.name} price to $${newPrice}`);
+//     }
+//   } catch (error) {
+//     console.error("Error updating coin prices:", error);
+//   }
+// }, 2000);
 
 const PORT = process.env.PORT || 5000;
 server.listen(
