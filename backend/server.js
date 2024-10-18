@@ -230,7 +230,6 @@ app.get("/api/coins", async (req, res) => {
 });
 
 const generatePriceFluctuation = () => {
-  // Generates a random price fluctuation between -1% and +1%
   const min = -0.01;
   const max = 0.01;
   return Math.random() * (max - min) + min;
