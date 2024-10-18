@@ -26,6 +26,7 @@ app.use(cors());
 app.use(express.json());
 
 const socketToUser = new Map();
+const coinPrices = new Map();
 
 io.on("connection", (socket) => {
   console.log("New client connected");
@@ -131,8 +132,14 @@ async function initializeDatabase() {
         priceChange24h: 0,
       });
       await newCoin.save();
+      coinPrices.set(newCoin.symbol, newCoin.price);
     }
     console.log("Initial coins created");
+  } else {
+    const coins = await Coin.find();
+    for (let coin of coins) {
+      coinPrices.set(coin.symbol, coin.price);
+    }
   }
 }
 
@@ -236,11 +243,16 @@ app.get("/api/coins", async (req, res) => {
 // };
 
 const updateCoinPrice = async (coin, type, amount) => {
+  const currentPrice = coinPrices.get(coin.symbol);
   const priceImpact = 0.00001 * amount;
   const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
-  coin.price *= multiplier;
+  let newPrice = currentPrice * multiplier;
 
-  const newPrice = coin.price * (1 + generatePriceFluctuation());
+  // Ensure the price doesn't go below 0.0001
+  newPrice = Math.max(newPrice, 0.0001);
+
+  coinPrices.set(coin.symbol, newPrice);
+
   coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
 
   if (coin.priceHistory.length > 1440) {
@@ -258,7 +270,7 @@ const updateCoinPrice = async (coin, type, amount) => {
   io.emit("priceUpdate", {
     _id: coin._id,
     symbol: coin.symbol,
-    price: coin.price,
+    price: newPrice,
     priceChange24h: coin.priceChange24h,
   });
 };
@@ -270,8 +282,14 @@ const startPriceUpdates = () => {
     try {
       const coins = await Coin.find();
       for (let coin of coins) {
+        const currentPrice = coinPrices.get(coin.symbol);
         const priceChange = generatePriceFluctuation();
-        const newPrice = coin.price * (1 + priceChange);
+        let newPrice = currentPrice * (1 + priceChange);
+
+        // Ensure the price doesn't go below 0.0001
+        newPrice = Math.max(newPrice, 0.0001);
+
+        coinPrices.set(coin.symbol, newPrice);
 
         coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
         if (coin.priceHistory.length > 1440) {
@@ -364,6 +382,7 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
     } else {
       return res.status(400).json({ message: "Invalid transaction type" });
     }
+    user.balance = Math.max(user.balance, 0);
 
     await user.save();
 
