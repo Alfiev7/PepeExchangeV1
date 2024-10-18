@@ -264,10 +264,61 @@ const updateCoinPrice = async (coin, type, amount) => {
   });
 };
 
+let priceUpdateInterval;
+
+const startPriceUpdates = () => {
+  priceUpdateInterval = setInterval(async () => {
+    try {
+      const coins = await Coin.find();
+      for (let coin of coins) {
+        const priceChange = generatePriceFluctuation();
+        const newPrice = coin.price * (1 + priceChange);
+
+        coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
+        if (coin.priceHistory.length > 1440) {
+          coin.priceHistory.shift();
+        }
+
+        const oldPrice = coin.priceHistory[0].price;
+        const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
+
+        await Coin.findOneAndUpdate(
+          { _id: coin._id },
+          {
+            $set: {
+              price: newPrice,
+              priceHistory: coin.priceHistory,
+              priceChange24h: priceChange24h,
+            },
+          },
+          { upsert: true }
+        );
+
+        io.emit("priceUpdate", {
+          _id: coin._id,
+          symbol: coin.symbol,
+          price: newPrice,
+          priceChange24h: priceChange24h,
+        });
+        console.log(`Updated ${coin.name} price to $${newPrice}`);
+      }
+    } catch (error) {
+      console.error("Error updating coin prices:", error);
+    }
+  }, 3000);
+};
+
+const stopPriceUpdates = () => {
+  if (priceUpdateInterval) {
+    clearInterval(priceUpdateInterval);
+  }
+};
+
 app.post("/api/transaction", authenticateToken, async (req, res) => {
   let user = null;
   let originalBalance = 0;
   let originalHoldings = null;
+  stopPriceUpdates();
 
   try {
     const { coinId, type, amount } = req.body;
@@ -366,6 +417,8 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
     res.status(500).json({
       message: "An error occurred during the transaction. Please try again.",
     });
+  } finally {
+    startPriceUpdates();
   }
 });
 
@@ -388,7 +441,8 @@ app.get("/api/transactions", authenticateToken, async (req, res) => {
 //   return (Math.random() * 0.6 - 0.3) / 100; // Random number between -0.3% and 0.3%
 // };
 
-// // Update coin prices every 2 seconds
+// Update coin prices every 2 seconds
+
 // setInterval(async () => {
 //   try {
 //     const coins = await Coin.find();
@@ -433,7 +487,11 @@ app.get("/api/transactions", authenticateToken, async (req, res) => {
 // }, 2000);
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(
+  PORT,
+  () => console.log(`Server running on port ${PORT}`),
+  startPriceUpdates()
+);
 
 app.get("/", (req, res) => {
   res.send("Crypto Trading API");
