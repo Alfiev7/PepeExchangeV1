@@ -37,7 +37,7 @@ const initializeCoins = async () => {
       name: "Cryptone",
       symbol: "CRN",
       price: 175,
-      minPrice: 165, // Set minimum price to default price
+      minPrice: 10, // Set minimum price to default price
       supply: 2000000000,
     },
     {
@@ -45,7 +45,7 @@ const initializeCoins = async () => {
       name: "Solara",
       symbol: "SOL",
       price: 250,
-      minPrice: 240, // Set minimum price to default price
+      minPrice: 10, // Set minimum price to default price
       supply: 2000000000,
     },
     {
@@ -53,7 +53,7 @@ const initializeCoins = async () => {
       name: "ZeroX",
       symbol: "ZRX",
       price: 1.25,
-      minPrice: 1.1, // Set minimum price to default price
+      minPrice: 1, // Set minimum price to default price
       supply: 2000000000,
     },
     {
@@ -61,7 +61,7 @@ const initializeCoins = async () => {
       name: "Mintium",
       symbol: "MNT",
       price: 5,
-      minPrice: 4,
+      minPrice: 3,
       supply: 2000000000,
     },
     {
@@ -69,7 +69,7 @@ const initializeCoins = async () => {
       name: "Polaris",
       symbol: "DOT",
       price: 35,
-      minPrice: 33, // Set minimum price to default price
+      minPrice: 10, // Set minimum price to default price
       supply: 2000000000,
     },
   ];
