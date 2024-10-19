@@ -35,6 +35,7 @@ io.on("connection", (socket) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       socketToUser.set(socket.id, decoded._id);
       console.log(`Socket ${socket.id} authenticated for user ${decoded._id}`);
+      io.emit("onlineUsersUpdate", socketToUser.size);
     } catch (error) {
       console.error("Authentication error:", error);
     }
@@ -43,6 +44,7 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     socketToUser.delete(socket.id);
     console.log("Client disconnected");
+    io.emit("onlineUsersUpdate", socketToUser.size);
   });
 });
 
@@ -132,7 +134,6 @@ async function initializeDatabase() {
       });
       await newCoin.save();
     }
-    console.log("Initial coins created");
   }
 }
 
@@ -141,13 +142,11 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
   if (token == null) {
-    console.log("No token provided");
     return res.status(401).json({ message: "No token provided" });
   }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
-      console.log("Token verification failed:", err.message);
       return res.status(403).json({ message: "Invalid token" });
     }
     req.user = user;
@@ -201,13 +200,10 @@ app.post("/api/login", async (req, res) => {
 
 app.get("/api/user", authenticateToken, async (req, res) => {
   try {
-    console.log("Fetching user data for:", req.user._id);
     const user = await User.findById(req.user._id).select("-password");
     if (!user) {
-      console.log("User not found:", req.user._id);
       return res.status(404).json({ message: "User not found" });
     }
-    console.log("User data retrieved:", user);
     res.json(user);
   } catch (error) {
     console.error("Error fetching user data:", error);
@@ -241,9 +237,14 @@ const updateCoinPrice = async (coin, type, amount) => {
   coin.price *= multiplier;
 
   // Ensure the price doesn't go below 0.0001
-  coin.price = Math.max(coin.price, 0.0001);
+  // coin.price = Math.max(coin.price, 0.0001);
 
-  const newPrice = coin.price * (1 + generatePriceFluctuation());
+  let newPrice = coin.price * (1 + generatePriceFluctuation());
+  let minPrice = coin.get("minPrice");
+
+  if (newPrice < minPrice) {
+    newPrice = minPrice;
+  }
   coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
 
   if (coin.priceHistory.length > 1440) {
@@ -302,7 +303,7 @@ const startPriceUpdates = () => {
           price: newPrice,
           priceChange24h: priceChange24h,
         });
-        console.log(`Updated ${coin.name} price to $${newPrice}`);
+        // console.log(`Updated ${coin.name} price to $${newPrice}`);
       }
     } catch (error) {
       console.error("Error updating coin prices:", error);
@@ -326,8 +327,6 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
     const { coinId, type, amount } = req.body;
     const userId = req.user._id;
 
-    console.log("Transaction request:", { userId, coinId, type, amount });
-
     if (!coinId || !type || amount <= 0) {
       return res.status(400).json({
         message: "Invalid input: coinId, type, and amount (> 0) are required",
@@ -340,8 +339,6 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
     if (!user || !coin) {
       return res.status(404).json({ message: "User or Coin not found" });
     }
-
-    console.log("User and coin found:", { userId: user._id, coinId: coin._id });
 
     const totalPrice = amount * coin.price;
     originalBalance = user.balance;
@@ -394,9 +391,6 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
     });
 
     await transaction.save();
-
-    console.log("Transaction successful:", transaction);
-    console.log("Updated user data:", updatedUser);
 
     emitUserUpdate(updatedUser._id.toString(), updatedUser);
 
@@ -488,6 +482,61 @@ function generatePriceFluctuation() {
 //     console.error("Error updating coin prices:", error);
 //   }
 // }, 2000);
+
+app.get("/api/admin/online-users", (req, res) => {
+  const onlineUsersCount = socketToUser.size;
+  res.json({ onlineUsers: onlineUsersCount });
+});
+
+// Admin route to get total users count
+app.get(
+  "/api/admin/total-users",
+
+  async (req, res) => {
+    try {
+      const totalUsers = await User.countDocuments();
+      res.json({ totalUsers });
+    } catch (error) {
+      console.error("Error fetching total users:", error);
+      res.status(500).json({ message: "Error fetching total users" });
+    }
+  }
+);
+
+// Admin route to get user list with portfolio values
+app.get(
+  "/api/admin/user-list",
+
+  async (req, res) => {
+    try {
+      const users = await User.find().select("-password");
+      const coins = await Coin.find();
+
+      const userList = await Promise.all(
+        users.map(async (user) => {
+          let totalAssetValue = 0;
+          for (const [symbol, amount] of user.holdings) {
+            const coin = coins.find((c) => c.symbol === symbol);
+            if (coin) {
+              totalAssetValue += coin.price * amount;
+            }
+          }
+          const portfolioValue = user.balance + totalAssetValue;
+
+          return {
+            username: user.username,
+            portfolioValue: portfolioValue.toFixed(2),
+          };
+        })
+      );
+
+      res.json(userList);
+    } catch (error) {
+      console.error("Error fetching user list:", error);
+      res.status(500).json({ message: "Error fetching user list" });
+    }
+  }
+);
 
 const PORT = process.env.PORT || 5000;
 server.listen(
