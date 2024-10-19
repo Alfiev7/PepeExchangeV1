@@ -450,7 +450,7 @@ app.get("/api/transactions", authenticateToken, async (req, res) => {
 
 // Function to generate random price fluctuations
 function generatePriceFluctuation() {
-  return (Math.random() * 0.6 - 0.3) / 100; // Random number between -0.3% and 0.3%
+  return (Math.random() * 1.4 - 0.7) / 100; // Random number between -0.7% and 0.7%
 }
 
 // Update coin prices every 2 seconds
