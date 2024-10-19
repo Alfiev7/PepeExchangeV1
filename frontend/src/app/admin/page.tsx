@@ -4,17 +4,23 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import io from "socket.io-client";
+import { Users, UserPlus, LogOut } from "lucide-react";
 
-const AdminDashboard = () => {
+type User = {
+  username: string;
+  portfolioValue: number;
+};
+
+export default function AdminDashboard() {
   const [onlineUsers, setOnlineUsers] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
-  const [userList, setUserList] = useState([]);
+  const [userList, setUserList] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    const socket = io(process.env.NEXT_PUBLIC_API_URL, {
-      transports: ["websocket"],
-    });
+   
 
     const fetchAdminData = async () => {
       try {
@@ -29,25 +35,16 @@ const AdminDashboard = () => {
         setOnlineUsers(onlineUsersRes.data.onlineUsers);
         setTotalUsers(totalUsersRes.data.totalUsers);
         setUserList(userListRes.data);
+        setIsLoading(false);
       } catch (error) {
         console.error("Error fetching admin data:", error);
+        setError("Failed to fetch admin data. Please try again.");
+        setIsLoading(false);
       }
     };
 
     fetchAdminData();
 
-    socket.on("connect", () => {
-      console.log("Connected to server");
-    });
-
-    socket.on("onlineUsersUpdate", (count) => {
-      console.log("Received online users update:", count);
-      setOnlineUsers(count);
-    });
-
-    return () => {
-      socket.disconnect();
-    };
   }, []);
 
   const handleLogout = () => {
@@ -56,29 +53,76 @@ const AdminDashboard = () => {
     router.push("/login");
   };
 
-  return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
-      <div className="mb-4">
-        <p className="text-lg">Online Users: {onlineUsers}</p>
-        <p className="text-lg">Total Users: {totalUsers}</p>
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        Loading...
       </div>
-      <h2 className="text-xl font-semibold mb-2">User List</h2>
-      <ul className="space-y-2">
-        {userList?.map((user, index) => (
-          <li key={index} className="bg-gray-100 p-2 rounded">
-            {user?.username} - Portfolio Value: ${user?.portfolioValue}
-          </li>
-        ))}
-      </ul>
-      <button
-        onClick={handleLogout}
-        className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-      >
-        Logout
-      </button>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-screen text-red-500">
+        {error}
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-6 bg-gray-50 min-h-screen">
+      <header className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
+        <button
+          onClick={handleLogout}
+          className="flex items-center px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          Logout
+        </button>
+      </header>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <StatCard icon={Users} label="Online Users" value={onlineUsers} />
+        <StatCard icon={UserPlus} label="Total Users" value={totalUsers} />
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-semibold mb-4 text-gray-800">User List</h2>
+        <ul className="space-y-2">
+          {userList.map((user, index) => (
+            <li
+              key={index}
+              className="bg-gray-100 p-3 rounded flex justify-between items-center"
+            >
+              <span className="text-gray-800">{user.username}</span>
+              <span className="font-semibold text-gray-900">
+                Portfolio Value: ${user.portfolioValue.toLocaleString()}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
-};
+}
 
-export default AdminDashboard;
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="bg-white rounded-lg shadow p-6 flex items-center">
+      <Icon className="w-12 h-12 text-blue-500 mr-4" />
+      <div>
+        <h2 className="text-lg font-semibold text-gray-800">{label}</h2>
+        <p className="text-2xl font-bold text-gray-900">{value}</p>
+      </div>
+    </div>
+  );
+}
