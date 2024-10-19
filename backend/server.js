@@ -40,6 +40,7 @@ io.on("connection", (socket) => {
       console.error("Authentication error:", error);
     }
   });
+  socketToUser.set(socket.id, Math.random().toString());
 
   socket.on("disconnect", () => {
     socketToUser.delete(socket.id);
