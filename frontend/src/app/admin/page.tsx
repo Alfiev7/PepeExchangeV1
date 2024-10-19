@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import io from "socket.io-client";
 import { Users, UserPlus, LogOut } from "lucide-react";
 
 type User = {
