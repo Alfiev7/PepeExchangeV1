@@ -41,6 +41,8 @@ io.on("connection", (socket) => {
     }
   });
 
+  socketToUser.set(socket.id, null);
+
   socket.on("disconnect", () => {
     socketToUser.delete(socket.id);
     console.log("Client disconnected");
@@ -257,8 +259,8 @@ const updateCoinPrice = async (coin, type, amount) => {
   coin.price = Math.max(newPrice, 0.0001); // Ensure the new price doesn't go below 0.0001
   coin.priceChange24h = priceChange24h;
 
- coin.lastUpdated = new Date();
- console.log("coin.lastUpdated", coin.lastUpdated);
+  coin.lastUpdated = new Date();
+  console.log("coin.lastUpdated", coin.lastUpdated);
 
   await coin.save();
 
@@ -276,13 +278,14 @@ const startPriceUpdates = () => {
   priceUpdateInterval = setInterval(async () => {
     try {
       const coins = await Coin.find();
-        const now = new Date();
+      const now = new Date();
       for (let coin of coins) {
-      
         const lastUpdated = coin.get("lastUpdated");
         // Check if the coin was updated (via a transaction) in the last 10 seconds
-         if (lastUpdated && (now - lastUpdated) < 20000) {
-          console.log(`Skipping price fluctuation for ${coin.symbol}, recently transacted`);
+        if (lastUpdated && now - lastUpdated < 20000) {
+          console.log(
+            `Skipping price fluctuation for ${coin.symbol}, recently transacted`
+          );
           continue;
         }
 
