@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { Users, UserPlus, LogOut } from "lucide-react";
+import useStore from "@/store";
 
 type User = {
   username: string;
@@ -17,10 +18,15 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { isAdmin } = useStore();
 
   useEffect(() => {
-   
+    if (!isAdmin) {
+      router.push("/dashboard");
+    }
+  }, [isAdmin]);
 
+  useEffect(() => {
     const fetchAdminData = async () => {
       try {
         const [onlineUsersRes, totalUsersRes, userListRes] = await Promise.all([
@@ -43,7 +49,6 @@ export default function AdminDashboard() {
     };
 
     fetchAdminData();
-
   }, []);
 
   const handleLogout = () => {
@@ -64,6 +69,13 @@ export default function AdminDashboard() {
     return (
       <div className="flex justify-center items-center h-screen text-red-500">
         {error}
+      </div>
+    );
+  }
+  if (!isAdmin) {
+    return (
+      <div className="flex justify-center items-center h-screen text-red-500">
+        You are not an admin
       </div>
     );
   }

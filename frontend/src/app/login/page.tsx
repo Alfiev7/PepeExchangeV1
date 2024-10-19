@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import useStore from "@/store";
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const router = useRouter();
+  const { setUserID } = useStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +29,9 @@ export default function Login() {
       if (response.ok) {
         const data = await response.json();
         localStorage.setItem("token", data.accessToken);
+        console.log("data", data);
+        const userID = data.userID;
+        setUserID(userID);
         router.push("/dashboard");
       } else {
         const errorData = await response.text();

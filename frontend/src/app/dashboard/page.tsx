@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import io from "socket.io-client";
 import Image from "next/image";
+import useStore from "@/store";
 
 type Coin = {
   _id: string;
@@ -42,6 +43,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { isAdmin } = useStore();
 
   const fetchData = async () => {
     const token = localStorage.getItem("token");
@@ -206,6 +208,14 @@ export default function Dashboard() {
               </span>
             </div>
             <div className="flex items-center space-x-4">
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition duration-150 ease-in-out"
+                >
+                  Admin
+                </Link>
+              )}
               <Link
                 href="/marketplace"
                 className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white transition duration-150 ease-in-out"
