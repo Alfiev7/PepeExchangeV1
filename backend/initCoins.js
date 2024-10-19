@@ -23,7 +23,7 @@ const coinSchema = new mongoose.Schema({
   },
   supply: Number,
   lastUpdated: {
-    type: Date, // This will track the last update time
+    type: Date,
     default: Date.now,
   },
 });
@@ -53,7 +53,7 @@ const initializeCoins = async () => {
       name: "ZeroX",
       symbol: "ZRX",
       price: 1.25,
-      minPrice: 1.10, // Set minimum price to default price
+      minPrice: 1.1, // Set minimum price to default price
       supply: 2000000000,
     },
     {

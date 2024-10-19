@@ -257,7 +257,8 @@ const updateCoinPrice = async (coin, type, amount) => {
   coin.price = Math.max(newPrice, 0.0001); // Ensure the new price doesn't go below 0.0001
   coin.priceChange24h = priceChange24h;
 
-  coin.lastUpdated = Date.now();
+ coin.lastUpdated = new Date();
+ console.log("coin.lastUpdated", coin.lastUpdated);
 
   await coin.save();
 
@@ -275,19 +276,16 @@ const startPriceUpdates = () => {
   priceUpdateInterval = setInterval(async () => {
     try {
       const coins = await Coin.find();
+        const now = new Date();
       for (let coin of coins) {
-        const now = Date.now();
-
+      
+        const lastUpdated = coin.get("lastUpdated");
         // Check if the coin was updated (via a transaction) in the last 10 seconds
-        if (
-          coin.lastUpdated &&
-          now - new Date(coin.lastUpdated).getTime() < 10000
-        ) {
-          console.log(
-            `Skipping price fluctuation for ${coin.symbol}, recently transacted`
-          );
-          continue; // Skip this coin, it was just modified
+         if (lastUpdated && (now - lastUpdated) < 20000) {
+          console.log(`Skipping price fluctuation for ${coin.symbol}, recently transacted`);
+          continue;
         }
+
         const priceChange = generatePriceFluctuation();
         const newPrice = coin.price * (1 + priceChange);
 
