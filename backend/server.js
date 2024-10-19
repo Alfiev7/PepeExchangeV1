@@ -391,7 +391,7 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
       }
     }
 
-    await updateCoinPrice(coin, type, amount);
+    // await updateCoinPrice(coin, type, amount);
 
     const transaction = new Transaction({
       userId: user._id,
