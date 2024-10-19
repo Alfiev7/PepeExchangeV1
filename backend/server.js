@@ -41,8 +41,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  socketToUser.set(socket.id, null);
-
   socket.on("disconnect", () => {
     socketToUser.delete(socket.id);
     console.log("Client disconnected");
