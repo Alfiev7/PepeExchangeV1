@@ -248,7 +248,6 @@ const updateCoinPrice = async (coin, type, amount) => {
   coin.price = newPrice;
 
   let minPrice = coin.get("minPrice");
-  console.log(minPrice);
   if (coin.price < minPrice) {
     coin.price = minPrice;
   }
