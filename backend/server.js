@@ -26,7 +26,6 @@ app.use(cors());
 app.use(express.json());
 
 const socketToUser = new Map();
-let priceLock = false;
 
 io.on("connection", (socket) => {
   console.log("New client connected");
@@ -41,7 +40,7 @@ io.on("connection", (socket) => {
       console.error("Authentication error:", error);
     }
   });
-  // socketToUser.set(socket.id, Math.random().toString());
+  socketToUser.set(socket.id, Math.random().toString());
 
   socket.on("disconnect", () => {
     socketToUser.delete(socket.id);
@@ -233,9 +232,30 @@ app.get("/api/coins", async (req, res) => {
 //   return Math.random() * (max - min) + min;
 // };
 
+let priceLockQueue = [];
+let priceLockActive = false;
+
+const acquirePriceLock = async () => {
+  return new Promise((resolve, reject) => {
+    priceLockQueue.push(resolve);
+    if (!priceLockActive) {
+      priceLockActive = true;
+      priceLockQueue.shift()(); // Release the first lock in the queue
+    }
+  });
+};
+
+const releasePriceLock = () => {
+  priceLockActive = false;
+  if (priceLockQueue.length > 0) {
+    priceLockActive = true;
+    priceLockQueue.shift()(); // Release the next lock in the queue
+  }
+};
+
 const updateCoinPrice = async (coin, type, amount) => {
   try {
-    priceLock = true;
+    await acquirePriceLock();
     const priceImpact = 0.00001 * amount;
     const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
     const newPrice = coin.price * multiplier;
@@ -269,14 +289,11 @@ const updateCoinPrice = async (coin, type, amount) => {
   } catch (error) {
     console.error("Error updating coin price:", error);
   } finally {
-    priceLock = false;
+    releasePriceLock();
   }
 };
 
 const updateCoinPriceRandomly = async () => {
-  if (priceLock) {
-    return;
-  }
   try {
     const coins = await Coin.find();
     for (let coin of coins) {
