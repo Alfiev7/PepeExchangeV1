@@ -27,7 +27,7 @@ app.use(express.json());
 
 const socketToUser = new Map();
 const cooldowns = new Map(); // To store cooldowns for coins
-const COOLDOWN_PERIOD = 100000; 
+const COOLDOWN_PERIOD = 10000; 
 
 io.on("connection", (socket) => {
   console.log("New client connected");
