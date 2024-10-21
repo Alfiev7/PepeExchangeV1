@@ -26,6 +26,8 @@ app.use(cors());
 app.use(express.json());
 
 const socketToUser = new Map();
+const cooldowns = new Map(); // To store cooldowns for coins
+const COOLDOWN_PERIOD = 100000; 
 
 io.on("connection", (socket) => {
   console.log("New client connected");
@@ -232,71 +234,49 @@ app.get("/api/coins", async (req, res) => {
 //   return Math.random() * (max - min) + min;
 // };
 
-let priceLockQueue = [];
-let priceLockActive = false;
-
-const acquirePriceLock = async () => {
-  return new Promise((resolve, reject) => {
-    priceLockQueue.push(resolve);
-    if (!priceLockActive) {
-      priceLockActive = true;
-      priceLockQueue.shift()(); // Release the first lock in the queue
-    }
-  });
-};
-
-const releasePriceLock = () => {
-  priceLockActive = false;
-  if (priceLockQueue.length > 0) {
-    priceLockActive = true;
-    priceLockQueue.shift()(); // Release the next lock in the queue
-  }
-};
-
 const updateCoinPrice = async (coin, type, amount) => {
-  try {
-    await acquirePriceLock();
-    const priceImpact = 0.00001 * amount;
-    const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
-    const newPrice = coin.price * multiplier;
+  const priceImpact = 0.00001 * amount;
+  const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
+  const newPrice = coin.price * multiplier;
 
-    coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
-    if (coin.priceHistory.length > 1440) {
-      coin.priceHistory.shift();
-    }
-
-    const oldPrice = coin.priceHistory[0].price;
-    const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
-
-    coin.price = newPrice;
-
-    let minPrice = coin.get("minPrice");
-    if (coin.price < minPrice) {
-      coin.price = minPrice;
-    }
-
-    coin.priceChange24h = priceChange24h;
-    coin.lastUpdated = new Date();
-
-    await coin.save();
-
-    io.emit("priceUpdate", {
-      _id: coin._id,
-      symbol: coin.symbol,
-      price: coin.price,
-      priceChange24h: coin.priceChange24h,
-    });
-  } catch (error) {
-    console.error("Error updating coin price:", error);
-  } finally {
-    releasePriceLock();
+  coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
+  if (coin.priceHistory.length > 1440) {
+    coin.priceHistory.shift(); // Keep only the last 24 hours (1440 minutes)
   }
-};
 
+  const oldPrice = coin.priceHistory[0].price;
+  const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
+
+  coin.price = newPrice;
+
+  coin.priceChange24h = priceChange24h;
+  coin.lastUpdated = new Date();
+
+  await coin.save();
+
+  // Emit the updated price
+  io.emit("priceUpdate", {
+    _id: coin._id,
+    symbol: coin.symbol,
+    price: coin.price,
+    priceChange24h: coin.priceChange24h,
+  });
+
+  // Mark this coin as on cooldown for random fluctuations
+  cooldowns.set(coin.symbol, Date.now());
+};
 const updateCoinPriceRandomly = async () => {
   try {
     const coins = await Coin.find();
+    const now = Date.now();
+
     for (let coin of coins) {
+      // Check if this coin is in cooldown
+      const lastUpdate = cooldowns.get(coin.symbol);
+      if (lastUpdate && now - lastUpdate < COOLDOWN_PERIOD) {
+        continue; // Skip this coin as it's in cooldown
+      }
+
       const priceChange = generatePriceFluctuation();
       const newPrice = coin.price * (1 + priceChange);
 
@@ -331,7 +311,6 @@ const updateCoinPriceRandomly = async () => {
     console.error("Error updating coin prices randomly:", error);
   }
 };
-
 let priceUpdateInterval;
 
 const startPriceUpdates = () => {
