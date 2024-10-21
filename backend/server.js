@@ -233,12 +233,6 @@ app.get("/api/coins", async (req, res) => {
 // };
 
 const updateCoinPrice = async (coin, type, amount) => {
-  stopPriceUpdates();
-
-  // adding a  delay here to simulate the price update
-
-  await new Promise((resolve) => setTimeout(resolve, 5000));
-
   const priceImpact = 0.00001 * amount;
   const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
   const newPrice = coin.price * multiplier;
@@ -270,8 +264,6 @@ const updateCoinPrice = async (coin, type, amount) => {
     price: coin.price,
     priceChange24h: coin.priceChange24h,
   });
-
-  await new Promise((resolve) => setTimeout(resolve, 5000));
 };
 
 const updateCoinPriceRandomly = async () => {
@@ -330,9 +322,6 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
   let user = null;
   let originalBalance = 0;
   let originalHoldings = null;
-  stopPriceUpdates();
-
-  await new Promise((resolve) => setTimeout(resolve, 5000));
 
   try {
     const { coinId, type, amount } = req.body;
@@ -405,11 +394,9 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
 
     emitUserUpdate(updatedUser._id.toString(), updatedUser);
 
-    res.status(200).json({
-      message: "Transaction successful",
-      user: updatedUser,
-      transactionCompleteTime: new Date().getTime() + 25000,  // 25 seconds
-    });
+    res
+      .status(200)
+      .json({ message: "Transaction successful", user: updatedUser });
   } catch (error) {
     console.error("Transaction error:", error);
 
@@ -427,11 +414,7 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
     res.status(500).json({
       message: "An error occurred during the transaction. Please try again.",
     });
-  } finally {
-    // delay before starting the price updates again
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-    startPriceUpdates();
-  }
+  } 
 });
 
 app.get("/api/transactions", authenticateToken, async (req, res) => {
@@ -557,7 +540,7 @@ const PORT = process.env.PORT || 5000;
 server.listen(
   PORT,
   () => console.log(`Server running on port ${PORT}`),
-  startPriceUpdates()
+  // startPriceUpdates()
 );
 
 app.get("/", (req, res) => {
