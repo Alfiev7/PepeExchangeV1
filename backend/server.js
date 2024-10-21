@@ -27,7 +27,7 @@ app.use(express.json());
 
 const socketToUser = new Map();
 const cooldowns = new Map(); // To store cooldowns for coins
-const COOLDOWN_PERIOD = 20000;
+const COOLDOWN_PERIOD = 10000;
 
 let lock = false;
 
@@ -237,6 +237,7 @@ app.get("/api/coins", async (req, res) => {
 // };
 
 const updateCoinPrice = async (coin, type, amount) => {
+  lock = true;
   const priceImpact = 0.00001 * amount;
   const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
   const newPrice = coin.price * multiplier;
@@ -266,7 +267,9 @@ const updateCoinPrice = async (coin, type, amount) => {
 
   // Mark this coin as on cooldown for random fluctuations
   cooldowns.set(coin.symbol, Date.now());
+  lock = false;
 };
+
 const updateCoinPriceRandomly = async () => {
   if (lock) return;
   try {
