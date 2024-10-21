@@ -410,7 +410,7 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
       .json({
         message: "Transaction successful",
         user: updatedUser,
-        transactionCompleteTime: new Date().getTime() + 12000,   // 12 seconds
+        transactionCompleteTime: new Date().getTime() + 15000,   // 12 seconds
       });
   } catch (error) {
     console.error("Transaction error:", error);
