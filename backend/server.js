@@ -27,7 +27,9 @@ app.use(express.json());
 
 const socketToUser = new Map();
 const cooldowns = new Map(); // To store cooldowns for coins
-const COOLDOWN_PERIOD = 10000; 
+const COOLDOWN_PERIOD = 20000;
+
+let lock = false;
 
 io.on("connection", (socket) => {
   console.log("New client connected");
@@ -266,6 +268,7 @@ const updateCoinPrice = async (coin, type, amount) => {
   cooldowns.set(coin.symbol, Date.now());
 };
 const updateCoinPriceRandomly = async () => {
+  if (lock) return;
   try {
     const coins = await Coin.find();
     const now = Date.now();
@@ -319,16 +322,12 @@ const startPriceUpdates = () => {
   }, 3000);
 };
 
-const stopPriceUpdates = () => {
-  if (priceUpdateInterval) {
-    clearInterval(priceUpdateInterval);
-  }
-};
 app.post("/api/transaction", authenticateToken, async (req, res) => {
   let user = null;
   let originalBalance = 0;
   let originalHoldings = null;
-  stopPriceUpdates();
+
+  lock = true;
 
   try {
     const { coinId, type, amount } = req.body;
@@ -422,7 +421,7 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
       message: "An error occurred during the transaction. Please try again.",
     });
   } finally {
-    startPriceUpdates();
+    lock = false;
   }
 });
 
