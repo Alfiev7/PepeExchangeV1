@@ -237,7 +237,7 @@ const updateCoinPrice = async (coin, type, amount) => {
 
   // adding a  delay here to simulate the price update
 
-  await new Promise((resolve) => setTimeout(resolve, 4000));
+  await new Promise((resolve) => setTimeout(resolve, 5000));
 
   const priceImpact = 0.00001 * amount;
   const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
@@ -271,7 +271,7 @@ const updateCoinPrice = async (coin, type, amount) => {
     priceChange24h: coin.priceChange24h,
   });
 
-  await new Promise((resolve) => setTimeout(resolve, 2000));
+  await new Promise((resolve) => setTimeout(resolve, 5000));
 };
 
 const updateCoinPriceRandomly = async () => {
@@ -332,7 +332,7 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
   let originalHoldings = null;
   stopPriceUpdates();
 
-  await new Promise((resolve) => setTimeout(resolve, 4000));
+  await new Promise((resolve) => setTimeout(resolve, 5000));
 
   try {
     const { coinId, type, amount } = req.body;
@@ -405,13 +405,11 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
 
     emitUserUpdate(updatedUser._id.toString(), updatedUser);
 
-    res
-      .status(200)
-      .json({
-        message: "Transaction successful",
-        user: updatedUser,
-        transactionCompleteTime: new Date().getTime() + 15000,   // 12 seconds
-      });
+    res.status(200).json({
+      message: "Transaction successful",
+      user: updatedUser,
+      transactionCompleteTime: new Date().getTime() + 20000, // 12 seconds
+    });
   } catch (error) {
     console.error("Transaction error:", error);
 
@@ -431,7 +429,7 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
     });
   } finally {
     // delay before starting the price updates again
-    await new Promise((resolve) => setTimeout(resolve, 4000));
+    await new Promise((resolve) => setTimeout(resolve, 5000));
     startPriceUpdates();
   }
 });
