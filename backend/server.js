@@ -26,10 +26,6 @@ app.use(cors());
 app.use(express.json());
 
 const socketToUser = new Map();
-const cooldowns = new Map(); // To store cooldowns for coins
-const COOLDOWN_PERIOD = 10000;
-
-let lock = false;
 
 io.on("connection", (socket) => {
   console.log("New client connected");
@@ -237,14 +233,19 @@ app.get("/api/coins", async (req, res) => {
 // };
 
 const updateCoinPrice = async (coin, type, amount) => {
-  lock = true;
+  stopPriceUpdates();
+
+  // adding a  delay here to simulate the price update
+
+  await new Promise((resolve) => setTimeout(resolve, 4000));
+
   const priceImpact = 0.00001 * amount;
   const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
   const newPrice = coin.price * multiplier;
 
   coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
   if (coin.priceHistory.length > 1440) {
-    coin.priceHistory.shift(); // Keep only the last 24 hours (1440 minutes)
+    coin.priceHistory.shift();
   }
 
   const oldPrice = coin.priceHistory[0].price;
@@ -252,12 +253,17 @@ const updateCoinPrice = async (coin, type, amount) => {
 
   coin.price = newPrice;
 
+  let minPrice = coin.get("minPrice");
+  console.log(minPrice);
+  if (coin.price < minPrice) {
+    coin.price = minPrice;
+  }
+
   coin.priceChange24h = priceChange24h;
   coin.lastUpdated = new Date();
 
   await coin.save();
 
-  // Emit the updated price
   io.emit("priceUpdate", {
     _id: coin._id,
     symbol: coin.symbol,
@@ -265,24 +271,13 @@ const updateCoinPrice = async (coin, type, amount) => {
     priceChange24h: coin.priceChange24h,
   });
 
-  // Mark this coin as on cooldown for random fluctuations
-  cooldowns.set(coin.symbol, Date.now());
-  lock = false;
+  await new Promise((resolve) => setTimeout(resolve, 2000));
 };
 
 const updateCoinPriceRandomly = async () => {
-  if (lock) return;
   try {
     const coins = await Coin.find();
-    const now = Date.now();
-
     for (let coin of coins) {
-      // Check if this coin is in cooldown
-      const lastUpdate = cooldowns.get(coin.symbol);
-      if (lastUpdate && now - lastUpdate < COOLDOWN_PERIOD) {
-        continue; // Skip this coin as it's in cooldown
-      }
-
       const priceChange = generatePriceFluctuation();
       const newPrice = coin.price * (1 + priceChange);
 
@@ -317,6 +312,7 @@ const updateCoinPriceRandomly = async () => {
     console.error("Error updating coin prices randomly:", error);
   }
 };
+
 let priceUpdateInterval;
 
 const startPriceUpdates = () => {
@@ -325,12 +321,18 @@ const startPriceUpdates = () => {
   }, 3000);
 };
 
+const stopPriceUpdates = () => {
+  if (priceUpdateInterval) {
+    clearInterval(priceUpdateInterval);
+  }
+};
 app.post("/api/transaction", authenticateToken, async (req, res) => {
   let user = null;
   let originalBalance = 0;
   let originalHoldings = null;
+  stopPriceUpdates();
 
-  lock = true;
+  await new Promise((resolve) => setTimeout(resolve, 4000));
 
   try {
     const { coinId, type, amount } = req.body;
@@ -405,7 +407,11 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
 
     res
       .status(200)
-      .json({ message: "Transaction successful", user: updatedUser });
+      .json({
+        message: "Transaction successful",
+        user: updatedUser,
+        transactionCompleteTime: new Date().getTime() + 10000,
+      });
   } catch (error) {
     console.error("Transaction error:", error);
 
@@ -424,7 +430,9 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
       message: "An error occurred during the transaction. Please try again.",
     });
   } finally {
-    lock = false;
+    // delay before starting the price updates again
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+    startPriceUpdates();
   }
 });
 

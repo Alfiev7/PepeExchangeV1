@@ -41,6 +41,25 @@ export default function Marketplace() {
   const [loading, setisLoading] = useState<boolean>(false);
   const router = useRouter();
   const { isAdmin } = useStore();
+  const [transactionInProgress, setTransactionInProgress] = useState(false);
+  const [transactionCompleteTime, setTransactionCompleteTime] = useState<
+    number | null
+  >(null);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (transactionCompleteTime) {
+      const now = new Date().getTime();
+      const remainingTime = Math.max(0, transactionCompleteTime - now);
+      timer = setTimeout(() => {
+        setTransactionInProgress(false);
+        setTransactionCompleteTime(null);
+      }, remainingTime);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [transactionCompleteTime]);
 
   const fetchUserData = useCallback(async () => {
     const token = localStorage.getItem("token");
@@ -179,9 +198,8 @@ export default function Marketplace() {
       }
 
       const data = await res.json();
-      console.log("Transaction response:", data);
       setUser(data.user);
-      console.log("Updated user data after transaction:", data.user);
+      setTransactionCompleteTime(data.transactionCompleteTime);
 
       const coin = coins.find((c) => c.symbol === coinId);
       if (coin) {
@@ -390,7 +408,7 @@ export default function Marketplace() {
                         </p>
                       )}
                       <button
-                        disabled={loading}
+                        disabled={loading || transactionInProgress}
                         onClick={() => {
                           const amount = parseFloat(buyAmounts[coin._id]);
                           if (amount > 0)
