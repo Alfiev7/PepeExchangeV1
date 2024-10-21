@@ -26,6 +26,7 @@ app.use(cors());
 app.use(express.json());
 
 const socketToUser = new Map();
+let priceLock = false;
 
 io.on("connection", (socket) => {
   console.log("New client connected");
@@ -233,39 +234,49 @@ app.get("/api/coins", async (req, res) => {
 // };
 
 const updateCoinPrice = async (coin, type, amount) => {
-  const priceImpact = 0.00001 * amount;
-  const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
-  const newPrice = coin.price * multiplier;
+  try {
+    priceLock = true;
+    const priceImpact = 0.00001 * amount;
+    const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
+    const newPrice = coin.price * multiplier;
 
-  coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
-  if (coin.priceHistory.length > 1440) {
-    coin.priceHistory.shift();
+    coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
+    if (coin.priceHistory.length > 1440) {
+      coin.priceHistory.shift();
+    }
+
+    const oldPrice = coin.priceHistory[0].price;
+    const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
+
+    coin.price = newPrice;
+
+    let minPrice = coin.get("minPrice");
+    if (coin.price < minPrice) {
+      coin.price = minPrice;
+    }
+
+    coin.priceChange24h = priceChange24h;
+    coin.lastUpdated = new Date();
+
+    await coin.save();
+
+    io.emit("priceUpdate", {
+      _id: coin._id,
+      symbol: coin.symbol,
+      price: coin.price,
+      priceChange24h: coin.priceChange24h,
+    });
+  } catch (error) {
+    console.error("Error updating coin price:", error);
+  } finally {
+    priceLock = false;
   }
-
-  const oldPrice = coin.priceHistory[0].price;
-  const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
-
-  coin.price = newPrice;
-
-  let minPrice = coin.get("minPrice");
-  if (coin.price < minPrice) {
-    coin.price = minPrice;
-  }
-
-  coin.priceChange24h = priceChange24h;
-  coin.lastUpdated = new Date();
-
-  await coin.save();
-
-  io.emit("priceUpdate", {
-    _id: coin._id,
-    symbol: coin.symbol,
-    price: coin.price,
-    priceChange24h: coin.priceChange24h,
-  });
 };
 
 const updateCoinPriceRandomly = async () => {
+  if (priceLock) {
+    return;
+  }
   try {
     const coins = await Coin.find();
     for (let coin of coins) {
