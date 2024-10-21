@@ -235,19 +235,9 @@ app.get("/api/coins", async (req, res) => {
 const updateCoinPrice = async (coin, type, amount) => {
   const priceImpact = 0.00001 * amount;
   const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
-  coin.price *= multiplier;
+  const newPrice = coin.price * multiplier;
 
-  // Ensure the price doesn't go below 0.0001
-  // coin.price = Math.max(coin.price, 0.0001);
-
-  let newPrice = coin.price * (1 + generatePriceFluctuation());
-  let minPrice = coin.get("minPrice");
-
-  if (newPrice < minPrice) {
-    newPrice = minPrice;
-  }
   coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
-
   if (coin.priceHistory.length > 1440) {
     coin.priceHistory.shift();
   }
@@ -255,11 +245,16 @@ const updateCoinPrice = async (coin, type, amount) => {
   const oldPrice = coin.priceHistory[0].price;
   const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
 
-  coin.price = Math.max(newPrice, 0.0001); // Ensure the new price doesn't go below 0.0001
-  coin.priceChange24h = priceChange24h;
+  coin.price = newPrice;
 
+  let minPrice = coin.get("minPrice");
+  console.log(minPrice);
+  if (coin.price < minPrice) {
+    coin.price = minPrice;
+  }
+
+  coin.priceChange24h = priceChange24h;
   coin.lastUpdated = new Date();
-  console.log("coin.lastUpdated", coin.lastUpdated);
 
   await coin.save();
 
@@ -271,57 +266,50 @@ const updateCoinPrice = async (coin, type, amount) => {
   });
 };
 
+const updateCoinPriceRandomly = async () => {
+  try {
+    const coins = await Coin.find();
+    for (let coin of coins) {
+      const priceChange = generatePriceFluctuation();
+      const newPrice = coin.price * (1 + priceChange);
+
+      coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
+      if (coin.priceHistory.length > 1440) {
+        coin.priceHistory.shift();
+      }
+
+      const oldPrice = coin.priceHistory[0].price;
+      const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
+
+      await Coin.findOneAndUpdate(
+        { _id: coin._id },
+        {
+          $set: {
+            price: newPrice,
+            priceHistory: coin.priceHistory,
+            priceChange24h: priceChange24h,
+          },
+        },
+        { upsert: true }
+      );
+
+      io.emit("priceUpdate", {
+        _id: coin._id,
+        symbol: coin.symbol,
+        price: newPrice,
+        priceChange24h: priceChange24h,
+      });
+    }
+  } catch (error) {
+    console.error("Error updating coin prices randomly:", error);
+  }
+};
+
 let priceUpdateInterval;
 
 const startPriceUpdates = () => {
   priceUpdateInterval = setInterval(async () => {
-    try {
-      const coins = await Coin.find();
-      const now = new Date();
-      for (let coin of coins) {
-        const lastUpdated = coin.get("lastUpdated");
-        // Check if the coin was updated (via a transaction) in the last 10 seconds
-        if (lastUpdated && now - lastUpdated < 20000) {
-          console.log(
-            `Skipping price fluctuation for ${coin.symbol}, recently transacted`
-          );
-          continue;
-        }
-
-        const priceChange = generatePriceFluctuation();
-        const newPrice = coin.price * (1 + priceChange);
-
-        coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
-        if (coin.priceHistory.length > 1440) {
-          coin.priceHistory.shift();
-        }
-
-        const oldPrice = coin.priceHistory[0].price;
-        const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
-
-        await Coin.findOneAndUpdate(
-          { _id: coin._id },
-          {
-            $set: {
-              price: newPrice,
-              priceHistory: coin.priceHistory,
-              priceChange24h: priceChange24h,
-            },
-          },
-          { upsert: true }
-        );
-
-        io.emit("priceUpdate", {
-          _id: coin._id,
-          symbol: coin.symbol,
-          price: newPrice,
-          priceChange24h: priceChange24h,
-        });
-        // console.log(`Updated ${coin.name} price to $${newPrice}`);
-      }
-    } catch (error) {
-      console.error("Error updating coin prices:", error);
-    }
+    await updateCoinPriceRandomly();
   }, 3000);
 };
 
@@ -330,7 +318,6 @@ const stopPriceUpdates = () => {
     clearInterval(priceUpdateInterval);
   }
 };
-
 app.post("/api/transaction", authenticateToken, async (req, res) => {
   let user = null;
   let originalBalance = 0;
@@ -393,7 +380,7 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
       }
     }
 
-    // await updateCoinPrice(coin, type, amount);
+    await updateCoinPrice(coin, type, amount);
 
     const transaction = new Transaction({
       userId: user._id,
