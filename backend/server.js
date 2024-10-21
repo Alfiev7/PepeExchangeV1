@@ -408,7 +408,7 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
     res.status(200).json({
       message: "Transaction successful",
       user: updatedUser,
-      transactionCompleteTime: new Date().getTime() + 20000, // 12 seconds
+      transactionCompleteTime: new Date().getTime() + 25000,  // 25 seconds
     });
   } catch (error) {
     console.error("Transaction error:", error);
