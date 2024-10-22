@@ -40,7 +40,6 @@ io.on("connection", (socket) => {
       console.error("Authentication error:", error);
     }
   });
-  socketToUser.set(socket.id, Math.random().toString());
 
   socket.on("disconnect", () => {
     socketToUser.delete(socket.id);
@@ -135,6 +134,7 @@ async function initializeDatabase() {
       });
       await newCoin.save();
     }
+    console.log("Initial coins created");
   }
 }
 
@@ -143,11 +143,13 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
   if (token == null) {
+    console.log("No token provided");
     return res.status(401).json({ message: "No token provided" });
   }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
+      console.log("Token verification failed:", err.message);
       return res.status(403).json({ message: "Invalid token" });
     }
     req.user = user;
@@ -189,7 +191,7 @@ app.post("/api/login", async (req, res) => {
     }
     if (await bcrypt.compare(req.body.password, user.password)) {
       const accessToken = jwt.sign({ _id: user._id }, process.env.JWT_SECRET);
-      res.json({ accessToken: accessToken, userID: user._id });
+      res.json({ accessToken: accessToken });
     } else {
       res.status(401).json({ message: "Not Allowed" });
     }
@@ -201,10 +203,13 @@ app.post("/api/login", async (req, res) => {
 
 app.get("/api/user", authenticateToken, async (req, res) => {
   try {
+    console.log("Fetching user data for:", req.user._id);
     const user = await User.findById(req.user._id).select("-password");
     if (!user) {
+      console.log("User not found:", req.user._id);
       return res.status(404).json({ message: "User not found" });
     }
+    console.log("User data retrieved:", user);
     res.json(user);
   } catch (error) {
     console.error("Error fetching user data:", error);
@@ -235,9 +240,14 @@ app.get("/api/coins", async (req, res) => {
 const updateCoinPrice = async (coin, type, amount) => {
   const priceImpact = 0.00001 * amount;
   const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
-  const newPrice = coin.price * multiplier;
+  coin.price *= multiplier;
 
+  // Ensure the price doesn't go below 0.0001
+  coin.price = Math.max(coin.price, 0.0001);
+
+  const newPrice = coin.price * (1 + generatePriceFluctuation());
   coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
+
   if (coin.priceHistory.length > 1440) {
     coin.priceHistory.shift();
   }
@@ -245,16 +255,8 @@ const updateCoinPrice = async (coin, type, amount) => {
   const oldPrice = coin.priceHistory[0].price;
   const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
 
-  coin.price = newPrice;
-
-  let minPrice = coin.get("minPrice");
-  console.log(minPrice);
-  if (coin.price < minPrice) {
-    coin.price = minPrice;
-  }
-
+  coin.price = Math.max(newPrice, 0.0001); // Ensure the new price doesn't go below 0.0001
   coin.priceChange24h = priceChange24h;
-  coin.lastUpdated = new Date();
 
   await coin.save();
 
@@ -266,66 +268,67 @@ const updateCoinPrice = async (coin, type, amount) => {
   });
 };
 
-const updateCoinPriceRandomly = async () => {
-  try {
-    const coins = await Coin.find();
-    for (let coin of coins) {
-      const priceChange = generatePriceFluctuation();
-      const newPrice = coin.price * (1 + priceChange);
 
-      coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
-      if (coin.priceHistory.length > 1440) {
-        coin.priceHistory.shift();
-      }
 
-      const oldPrice = coin.priceHistory[0].price;
-      const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
+// const startPriceUpdates = () => {
+//   priceUpdateInterval = setInterval(async () => {
+//     try {
+//       const coins = await Coin.find();
+//       for (let coin of coins) {
+//         const priceChange = generatePriceFluctuation();
+//         const newPrice = coin.price * (1 + priceChange);
 
-      await Coin.findOneAndUpdate(
-        { _id: coin._id },
-        {
-          $set: {
-            price: newPrice,
-            priceHistory: coin.priceHistory,
-            priceChange24h: priceChange24h,
-          },
-        },
-        { upsert: true }
-      );
+//         coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
+//         if (coin.priceHistory.length > 1440) {
+//           coin.priceHistory.shift();
+//         }
 
-      io.emit("priceUpdate", {
-        _id: coin._id,
-        symbol: coin.symbol,
-        price: newPrice,
-        priceChange24h: priceChange24h,
-      });
-    }
-  } catch (error) {
-    console.error("Error updating coin prices randomly:", error);
-  }
-};
+//         const oldPrice = coin.priceHistory[0].price;
+//         const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
 
-let priceUpdateInterval;
+//         await Coin.findOneAndUpdate(
+//           { _id: coin._id },
+//           {
+//             $set: {
+//               price: newPrice,
+//               priceHistory: coin.priceHistory,
+//               priceChange24h: priceChange24h,
+//             },
+//           },
+//           { upsert: true }
+//         );
 
-const startPriceUpdates = () => {
-  priceUpdateInterval = setInterval(async () => {
-    await updateCoinPriceRandomly();
-  }, 3000);
-};
+//         io.emit("priceUpdate", {
+//           _id: coin._id,
+//           symbol: coin.symbol,
+//           price: newPrice,
+//           priceChange24h: priceChange24h,
+//         });
+//         console.log(`Updated ${coin.name} price to $${newPrice}`);
+//       }
+//     } catch (error) {
+//       console.error("Error updating coin prices:", error);
+//     }
+//   }, 5000);
+// };
 
-const stopPriceUpdates = () => {
-  if (priceUpdateInterval) {
-    clearInterval(priceUpdateInterval);
-  }
-};
+// const stopPriceUpdates = () => {
+//   if (priceUpdateInterval) {
+//     clearInterval(priceUpdateInterval);
+//   }
+// };
+
 app.post("/api/transaction", authenticateToken, async (req, res) => {
   let user = null;
   let originalBalance = 0;
   let originalHoldings = null;
+  // stopPriceUpdates();
 
   try {
     const { coinId, type, amount } = req.body;
     const userId = req.user._id;
+
+    console.log("Transaction request:", { userId, coinId, type, amount });
 
     if (!coinId || !type || amount <= 0) {
       return res.status(400).json({
@@ -339,6 +342,8 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
     if (!user || !coin) {
       return res.status(404).json({ message: "User or Coin not found" });
     }
+
+    console.log("User and coin found:", { userId: user._id, coinId: coin._id });
 
     const totalPrice = amount * coin.price;
     originalBalance = user.balance;
@@ -392,6 +397,9 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
 
     await transaction.save();
 
+    console.log("Transaction successful:", transaction);
+    console.log("Updated user data:", updatedUser);
+
     emitUserUpdate(updatedUser._id.toString(), updatedUser);
 
     res
@@ -433,53 +441,9 @@ app.get("/api/transactions", authenticateToken, async (req, res) => {
 
 // Function to generate random price fluctuations
 function generatePriceFluctuation() {
-  return (Math.random() * 1.4 - 0.7) / 100; // Random number between -0.7% and 0.7%
+  return (Math.random() * 0.6 - 0.3) / 100; // Random number between -0.3% and 0.3%
 }
 
-// Update coin prices every 2 seconds
-
-// setInterval(async () => {
-//   try {
-//     const coins = await Coin.find();
-//     for (let coin of coins) {
-//       const priceChange = generatePriceFluctuation();
-//       const newPrice = coin.price * (1 + priceChange);
-
-//       coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
-//       if (coin.priceHistory.length > 1440) {
-//         // Keep only the last 24 hours (1440 minutes)
-//         coin.priceHistory.shift();
-//       }
-
-//       const oldPrice = coin.priceHistory[0].price;
-//       const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
-
-//       // Update the coin in the database using findOneAndUpdate
-//       await Coin.findOneAndUpdate(
-//         { _id: coin._id },
-//         {
-//           $set: {
-//             price: newPrice,
-//             priceHistory: coin.priceHistory,
-//             priceChange24h: priceChange24h,
-//           },
-//         },
-//         { upsert: true }
-//       );
-
-//       // Emit the updated price via socket.io
-//       io.emit("priceUpdate", {
-//         _id: coin._id,
-//         symbol: coin.symbol,
-//         price: newPrice,
-//         priceChange24h: priceChange24h,
-//       });
-//       console.log(`Updated ${coin.name} price to $${newPrice}`);
-//     }
-//   } catch (error) {
-//     console.error("Error updating coin prices:", error);
-//   }
-// }, 2000);
 
 app.get("/api/admin/online-users", (req, res) => {
   const onlineUsersCount = socketToUser.size;
