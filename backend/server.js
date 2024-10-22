@@ -242,9 +242,6 @@ const updateCoinPrice = async (coin, type, amount) => {
   const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
   coin.price *= multiplier;
 
-  // Ensure the price doesn't go below 0.0001
-  coin.price = Math.max(coin.price, 0.0001);
-
   const newPrice = coin.price * (1 + generatePriceFluctuation());
   coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
 
@@ -255,7 +252,6 @@ const updateCoinPrice = async (coin, type, amount) => {
   const oldPrice = coin.priceHistory[0].price;
   const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
 
-  coin.price = Math.max(newPrice, 0.0001); // Ensure the new price doesn't go below 0.0001
   coin.priceChange24h = priceChange24h;
 
   await Coin.findOneAndUpdate(
