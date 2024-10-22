@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import useStore from "@/store";
 import ReCAPTCHA from "react-google-recaptcha";
-import axios from "axios";
 
 export default function Login() {
   const [username, setUsername] = useState("");
