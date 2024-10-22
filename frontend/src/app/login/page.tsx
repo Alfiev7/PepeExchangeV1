@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import useStore from "@/store";
@@ -10,22 +10,16 @@ export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { setUserID } = useStore();
-  const recaptchaRef = useRef<ReCAPTCHA>(null);
+
+  const recaptcha = useRef<ReCAPTCHA>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setIsLoading(true);
-
-    // Get CAPTCHA token
-    const captchaToken = await recaptchaRef.current?.getValue();
-
-    if (!captchaToken) {
-      setError("Please complete the CAPTCHA verification");
-      setIsLoading(false);
+    if (!recaptcha?.current.getValue()) {
+      setError("Please complete the reCAPTCHA.");
       return;
     }
 
@@ -34,33 +28,25 @@ export default function Login() {
         `${process.env.NEXT_PUBLIC_API_URL}/api/login`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            username,
-            password,
-            captchaToken,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
         }
       );
 
-      const data = await response.json();
-
       if (response.ok) {
+        const data = await response.json();
         localStorage.setItem("token", data.accessToken);
-        setUserID(data.userID);
+        console.log("data", data);
+        const userID = data.userID;
+        setUserID(userID);
         router.push("/dashboard");
       } else {
-        setError(data.message || "Login failed");
-        recaptchaRef.current?.reset();
+        const errorData = await response.text();
+        setError(errorData || "Login failed");
       }
-    } catch (err) {
-      console.error("Login error:", err);
-      setError("An error occurred during login. Please try again.");
-      recaptchaRef.current?.reset();
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error("Login error:", error);
+      setError("An error occurred. Please try again.");
     }
   };
 
@@ -71,9 +57,9 @@ export default function Login() {
           Login to <span className="text-green-500">PepeExchange</span>
         </h1>
         {error && (
-          <div className="text-red-500 mb-4 text-center bg-red-100 border border-red-400 rounded p-2">
+          <p className="text-red-500 mb-4 text-center bg-red-100 border border-red-400 rounded p-2">
             {error}
-          </div>
+          </p>
         )}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -108,19 +94,17 @@ export default function Login() {
               required
             />
           </div>
-          <div className="flex justify-center">
-            <ReCAPTCHA
-              ref={recaptchaRef}
-              sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
-              theme="dark"
-            />
-          </div>
+          <ReCAPTCHA
+            sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
+            ref={recaptcha}
+            theme="dark"
+          />
+
           <button
             type="submit"
-            disabled={isLoading}
-            className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-200"
           >
-            {isLoading ? "Logging in..." : "Login"}
+            Login
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-gray-400">
