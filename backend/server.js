@@ -6,6 +6,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const cors = require("cors");
 require("dotenv").config();
+const axios = require("axios");
 
 const app = express();
 const server = http.createServer(app);
@@ -494,7 +495,6 @@ app.get(
   }
 );
 
-// Admin route to get user list with portfolio values
 app.get(
   "/api/admin/user-list",
 

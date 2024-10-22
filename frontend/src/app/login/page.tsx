@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import useStore from "@/store";
 import ReCAPTCHA from "react-google-recaptcha";
+import axios from "axios";
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { setUserID } = useStore();
   const recaptchaRef = useRef<ReCAPTCHA>(null);
@@ -17,43 +19,46 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
+
+    // Get CAPTCHA token
+    const captchaToken = await recaptchaRef.current?.getValue();
+
+    if (!captchaToken) {
+      setError("Please complete the CAPTCHA verification");
+      setIsLoading(false);
+      return;
+    }
 
     try {
-      // Get ReCAPTCHA token
-      const captchaToken = await recaptchaRef.current?.executeAsync();
-      if (!captchaToken) {
-        setError("Please complete the CAPTCHA");
-        return;
-      }
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username,
+          password,
+          captchaToken,
+        }),
+      });
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/login`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            username,
-            password,
-            captchaToken,
-          }),
-        }
-      );
+      const data = await response.json();
 
       if (response.ok) {
-        const data = await response.json();
         localStorage.setItem("token", data.accessToken);
         setUserID(data.userID);
         router.push("/dashboard");
       } else {
-        const errorData = await response.json();
-        setError(errorData.message || "Login failed");
-        // Reset CAPTCHA on failure
+        setError(data.message || "Login failed");
         recaptchaRef.current?.reset();
       }
-    } catch (error) {
-      console.error("Login error:", error);
-      setError("An error occurred. Please try again.");
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("An error occurred during login. Please try again.");
       recaptchaRef.current?.reset();
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -64,9 +69,9 @@ export default function Login() {
           Login to <span className="text-green-500">PepeExchange</span>
         </h1>
         {error && (
-          <p className="text-red-500 mb-4 text-center bg-red-100 border border-red-400 rounded p-2">
+          <div className="text-red-500 mb-4 text-center bg-red-100 border border-red-400 rounded p-2">
             {error}
-          </p>
+          </div>
         )}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -101,16 +106,19 @@ export default function Login() {
               required
             />
           </div>
-          <ReCAPTCHA
-            ref={recaptchaRef}
-            size="normal"
-            sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
-          />
+          <div className="flex justify-center">
+            <ReCAPTCHA
+              ref={recaptchaRef}
+              sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
+              theme="dark"
+            />
+          </div>
           <button
             type="submit"
-            className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-200"
+            disabled={isLoading}
+            className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Login
+            {isLoading ? "Logging in..." : "Login"}
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-gray-400">
