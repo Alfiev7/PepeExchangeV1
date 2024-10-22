@@ -238,79 +238,44 @@ app.get("/api/coins", async (req, res) => {
 // };
 
 const updateCoinPrice = async (coin, type, amount) => {
-  try {
-    // Calculate price impact based on trade size relative to total supply
-    // Larger trades will have more impact
-    const priceImpact = (amount / coin.supply) * 0.1; // 10% impact for trading entire supply
+  const priceImpact = 0.00001 * amount;
+  const multiplier = type === "buy" ? 1 + priceImpact : 1 - priceImpact;
+  coin.price *= multiplier;
 
-    // Apply price impact based on trade type
-    let priceMultiplier;
-    if (type === "buy") {
-      priceMultiplier = 1 + priceImpact;
-    } else if (type === "sell") {
-      priceMultiplier = 1 / (1 + priceImpact); // Inverse multiplier for sells
-    } else {
-      throw new Error("Invalid transaction type");
-    }
+  // Ensure the price doesn't go below 0.0001
+  coin.price = Math.max(coin.price, 0.0001);
 
-    // Calculate new price with trade impact
-    let newPrice = coin.price * priceMultiplier;
+  const newPrice = coin.price * (1 + generatePriceFluctuation());
+  coin.priceHistory.push({ price: newPrice, timestamp: new Date() });
 
-    // Add small random fluctuation (-0.3% to +0.3%)
-    const fluctuation = 1 + (Math.random() * 0.006 - 0.003);
-    newPrice *= fluctuation;
+  if (coin.priceHistory.length > 1440) {
+    coin.priceHistory.shift();
+  }
 
-    // Ensure minimum price
-    newPrice = Math.max(newPrice, 0.0001);
+  const oldPrice = coin.priceHistory[0].price;
+  const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
 
-    // Update price history
-    const timestamp = new Date();
-    coin.priceHistory.push({ price: newPrice, timestamp });
+  coin.price = Math.max(newPrice, 0.0001); // Ensure the new price doesn't go below 0.0001
+  coin.priceChange24h = priceChange24h;
 
-    // Maintain history length
-    if (coin.priceHistory.length > 1440) {
-      coin.priceHistory = coin.priceHistory.slice(-1440);
-    }
-
-    // Calculate 24h price change
-    const oneDayAgo = new Date(timestamp - 24 * 60 * 60 * 1000);
-    const recentPrices = coin.priceHistory.filter(
-      (p) => p.timestamp > oneDayAgo
-    );
-    const oldPrice =
-      recentPrices.length > 0
-        ? recentPrices[0].price
-        : coin.priceHistory[0].price;
-    const priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
-
-    // Update coin with new values
-    coin.price = newPrice;
-    coin.priceChange24h = priceChange24h;
-
-    // Save changes atomically
-    await Coin.findByIdAndUpdate(
-      coin._id,
-      {
-        price: newPrice,
+  await Coin.findOneAndUpdate(
+    { _id: coin._id },
+    {
+      $set: {
+        price: coin.price,
         priceHistory: coin.priceHistory,
         priceChange24h: priceChange24h,
       },
-      { new: true }
-    );
+    },
+    { upsert: true }
+  )
 
-    // Emit price update to all connected clients
-    io.emit("priceUpdate", {
-      _id: coin._id,
-      symbol: coin.symbol,
-      price: newPrice,
-      priceChange24h: priceChange24h,
-    });
-
-    return coin;
-  } catch (error) {
-    console.error("Error updating coin price:", error);
-    throw error;
-  }
+  io.emit("priceUpdate", {
+    _id: coin._id,
+    symbol: coin.symbol,
+    price: coin.price,
+    priceChange24h: coin.priceChange24h,
+  });
 };
 
 
