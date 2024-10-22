@@ -18,11 +18,16 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!recaptcha?.current.getValue()) {
-      setError("Please complete the reCAPTCHA.");
-      return;
-    }
+     if (recaptcha.current === null) {
+    setError("reCAPTCHA failed to load. Please refresh the page.");
+    return;
+  }
 
+  const recaptchaValue = recaptcha.current.getValue();
+  if (!recaptchaValue) {
+    setError("Please complete the reCAPTCHA challenge.");
+    return;
+  }
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/login`,
