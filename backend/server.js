@@ -191,7 +191,7 @@ app.post("/api/login", async (req, res) => {
     }
     if (await bcrypt.compare(req.body.password, user.password)) {
       const accessToken = jwt.sign({ _id: user._id }, process.env.JWT_SECRET);
-      res.json({ accessToken: accessToken });
+      res.json({ accessToken: accessToken, username: user.username });
     } else {
       res.status(401).json({ message: "Not Allowed" });
     }
@@ -264,7 +264,7 @@ const updateCoinPrice = async (coin, type, amount) => {
       },
     },
     { upsert: true }
-  )
+  );
 
   io.emit("priceUpdate", {
     _id: coin._id,
@@ -273,8 +273,6 @@ const updateCoinPrice = async (coin, type, amount) => {
     priceChange24h: coin.priceChange24h,
   });
 };
-
-
 
 // const startPriceUpdates = () => {
 //   priceUpdateInterval = setInterval(async () => {
@@ -428,7 +426,7 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
     res.status(500).json({
       message: "An error occurred during the transaction. Please try again.",
     });
-  } 
+  }
 });
 
 app.get("/api/transactions", authenticateToken, async (req, res) => {
@@ -449,7 +447,6 @@ app.get("/api/transactions", authenticateToken, async (req, res) => {
 function generatePriceFluctuation() {
   return (Math.random() * 0.6 - 0.3) / 100; // Random number between -0.3% and 0.3%
 }
-
 
 app.get("/api/admin/online-users", (req, res) => {
   const onlineUsersCount = socketToUser.size;
@@ -509,7 +506,7 @@ app.get(
 const PORT = process.env.PORT || 5000;
 server.listen(
   PORT,
-  () => console.log(`Server running on port ${PORT}`),
+  () => console.log(`Server running on port ${PORT}`)
   // startPriceUpdates()
 );
 
