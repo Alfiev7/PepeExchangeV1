@@ -1,18 +1,31 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import ReCAPTCHA from "react-google-recaptcha";
 
 export default function Signup() {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const router = useRouter()
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const router = useRouter();
+
+  const recaptcha = useRef<ReCAPTCHA>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
+    e.preventDefault();
+    setError("");
+    if (recaptcha.current === null) {
+      setError("reCAPTCHA failed to load. Please refresh the page.");
+      return;
+    }
+
+    const recaptchaValue = recaptcha.current.getValue();
+    if (!recaptchaValue) {
+      setError("Please complete the reCAPTCHA challenge.");
+      return;
+    }
 
     try {
       const response = await fetch(
@@ -34,7 +47,7 @@ export default function Signup() {
       console.error("Signup error:", error); // Log the error for debugging
       setError("An error occurred. Please try again.");
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800 bg-opacity-50 backdrop-blur-xl">
@@ -49,7 +62,10 @@ export default function Signup() {
         )}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-300">
+            <label
+              htmlFor="username"
+              className="block text-sm font-medium text-gray-300"
+            >
               Username
             </label>
             <input
@@ -62,7 +78,10 @@ export default function Signup() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-300">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-300"
+            >
               Password
             </label>
             <input
@@ -74,6 +93,11 @@ export default function Signup() {
               required
             />
           </div>
+          <ReCAPTCHA
+            sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
+            ref={recaptcha}
+            theme="dark"
+          />
           <button
             type="submit"
             className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-200"
@@ -82,12 +106,15 @@ export default function Signup() {
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-gray-400">
-          Already have an account?{' '}
-          <Link href="/login" className="text-green-400 hover:text-green-300 transition duration-200">
+          Already have an account?{" "}
+          <Link
+            href="/login"
+            className="text-green-400 hover:text-green-300 transition duration-200"
+          >
             Log in
           </Link>
         </p>
       </div>
     </div>
-  )
+  );
 }
