@@ -41,6 +41,7 @@ export default function Marketplace() {
   const [loading, setisLoading] = useState<boolean>(false);
   const router = useRouter();
   const { isAdmin } = useStore();
+  console.log("isAdmin", isAdmin);
   const [transactionInProgress, setTransactionInProgress] = useState(false);
   const [transactionCompleteTime, setTransactionCompleteTime] = useState<
     number | null

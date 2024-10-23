@@ -43,8 +43,8 @@ export default function Login() {
         localStorage.setItem("token", data.accessToken);
         console.log("data", data);
         const userID = data.userID;
-        
-        setUserID(userID);
+        console.log("userID", userID);
+        setUserID(userID?.toString());
         router.push("/dashboard");
       } else {
         const errorData = await response.text();

@@ -191,7 +191,7 @@ app.post("/api/login", async (req, res) => {
     }
     if (await bcrypt.compare(req.body.password, user.password)) {
       const accessToken = jwt.sign({ _id: user._id }, process.env.JWT_SECRET);
-      res.json({ accessToken: accessToken, username: user });
+      res.json({ accessToken: accessToken, userID: user._id });
     } else {
       res.status(401).json({ message: "Not Allowed" });
     }
