@@ -44,6 +44,7 @@ const Shop = () => {
     fetchUserAndProducts();
   }, []);
 
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     router.push("/login");
@@ -115,6 +116,7 @@ const Shop = () => {
           type: "success",
           message: "Purchase successful!",
         });
+        fetchUserAndProducts();
       } else {
         throw new Error(data.message);
       }
@@ -140,6 +142,13 @@ const Shop = () => {
       });
     }
   };
+
+  setInterval(() => {
+    if (notification) {
+      setNotification(null);
+      setPurchaseCode(null);
+    }
+  }, 10000);
 
   if (loading) {
     return (
