@@ -7,12 +7,36 @@ import Link from "next/link";
 import useStore from "@/store";
 import { useRouter } from "next/navigation";
 
+interface Product {
+  _id: string;
+  name: string;
+  price: number;
+  requiredCoin: string;
+  description: string;
+}
+
+interface User {
+  balance: number;
+  holdings: Record<string, number>;
+  username: string;
+}
+
+interface PurchaseCode {
+  code: string;
+  product: string;
+}
+
+interface Notification {
+  type: "success" | "error";
+  message: string;
+}
+
 const Shop = () => {
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [purchaseCode, setPurchaseCode] = useState(null);
-  const [notification, setNotification] = useState(null);
-  const [user, setUser] = useState(null);
+  const [purchaseCode, setPurchaseCode] = useState<PurchaseCode | null>(null);
+  const [notification, setNotification] = useState<Notification | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const { isAdmin } = useStore();
   const router = useRouter();
 
@@ -27,15 +51,21 @@ const Shop = () => {
 
   const fetchUserAndProducts = async () => {
     try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
       const [userResponse, productsResponse] = await Promise.all([
         fetch("/api/user", {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         }),
         fetch("/api/shop/products", {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         }),
       ]);
@@ -57,13 +87,19 @@ const Shop = () => {
     }
   };
 
-  const handlePurchase = async (productId) => {
+  const handlePurchase = async (productId: string) => {
     try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
       const response = await fetch("/api/shop/purchase", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ productId }),
       });
@@ -85,12 +121,12 @@ const Shop = () => {
     } catch (error) {
       setNotification({
         type: "error",
-        message: error.message,
+        message: error instanceof Error ? error.message : "An error occurred",
       });
     }
   };
 
-  const copyToClipboard = async (code) => {
+  const copyToClipboard = async (code: string) => {
     try {
       await navigator.clipboard.writeText(code);
       setNotification({
@@ -104,7 +140,6 @@ const Shop = () => {
       });
     }
   };
-  console.log(products)
 
   if (loading) {
     return (
@@ -113,7 +148,6 @@ const Shop = () => {
       </div>
     );
   }
-  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-gray-100 p-6">
@@ -172,13 +206,13 @@ const Shop = () => {
               <div className="bg-gray-800 bg-opacity-50 backdrop-blur-lg rounded-lg p-6">
                 <h2 className="text-xl font-bold text-white mb-2">Balance</h2>
                 <p className="text-2xl font-bold text-green-400">
-                  ${user.balance?.toLocaleString()}
+                  ${user.balance.toLocaleString()}
                 </p>
               </div>
               <div className="bg-gray-800 bg-opacity-50 backdrop-blur-lg rounded-lg p-6">
                 <h2 className="text-xl font-bold text-white mb-2">Holdings</h2>
                 <div className="space-y-2">
-                  {Object.entries(user.holdings || {}).map(([coin, amount]) => (
+                  {Object.entries(user.holdings).map(([coin, amount]) => (
                     <div key={coin} className="flex justify-between">
                       <span className="text-gray-300">{coin}:</span>
                       <span className="font-medium">{amount}</span>
@@ -218,29 +252,28 @@ const Shop = () => {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products && products.length > 0 &&
-              products?.map((product) => (
-                <div
-                  key={product._id}
-                  className="bg-gray-800 bg-opacity-50 backdrop-blur-lg rounded-lg overflow-hidden"
-                >
-                  <div className="p-6">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-xl font-bold">{product.name}</h3>
-                      <span className="text-sm text-gray-400">
-                        {product.price} {product.requiredCoin}
-                      </span>
-                    </div>
-                    <p className="text-gray-300 mb-4">{product.description}</p>
-                    <button
-                      onClick={() => handlePurchase(product._id)}
-                      className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors font-medium"
-                    >
-                      Purchase
-                    </button>
+            {products.map((product) => (
+              <div
+                key={product._id}
+                className="bg-gray-800 bg-opacity-50 backdrop-blur-lg rounded-lg overflow-hidden"
+              >
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold">{product.name}</h3>
+                    <span className="text-sm text-gray-400">
+                      {product.price} {product.requiredCoin}
+                    </span>
                   </div>
+                  <p className="text-gray-300 mb-4">{product.description}</p>
+                  <button
+                    onClick={() => handlePurchase(product._id)}
+                    className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors font-medium"
+                  >
+                    Purchase
+                  </button>
                 </div>
-              ))}
+              </div>
+            ))}
           </div>
         </div>
       </div>
