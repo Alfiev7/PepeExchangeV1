@@ -5,6 +5,7 @@ const socketIo = require("socket.io");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const cors = require("cors");
+const { Product, ProductCode } = require("./initProducts");
 require("dotenv").config();
 
 const app = express();
@@ -502,6 +503,83 @@ app.get(
     }
   }
 );
+
+app.get("/api/shop/products", authenticateToken, async (req, res) => {
+  try {
+    const products = await Product.find();
+    res.json(products);
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    res.status(500).json({ message: "Error fetching products" });
+  }
+});
+
+app.post("/api/shop/purchase", authenticateToken, async (req, res) => {
+  try {
+    const { productId } = req.body;
+    const userId = req.user._id;
+
+    // Find product and user
+    const [product, user] = await Promise.all([
+      Product.findById(productId),
+      User.findById(userId),
+    ]);
+
+    if (!product) {
+      throw new Error("Product not found");
+    }
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Check user's coin balance
+    const userCoinBalance = user.holdings.get(product.requiredCoin) || 0;
+    if (userCoinBalance < product.price) {
+      throw new Error(`Insufficient ${product.requiredCoin} balance`);
+    }
+
+    // Find and update product code
+    const productCode = await ProductCode.findOne({
+      productName: product.name,
+      isUsed: false,
+    });
+
+    if (!productCode) {
+      throw new Error("No available codes for this product");
+    }
+
+    // Update user's coin balance
+    const newBalance = userCoinBalance - product.price;
+    if (newBalance === 0) {
+      user.holdings.delete(product.requiredCoin);
+    } else {
+      user.holdings.set(product.requiredCoin, newBalance);
+    }
+
+    // Save changes
+    try {
+      await Promise.all([
+        user.save(),
+        ProductCode.deleteOne({ _id: productCode._id }),
+      ]);
+
+      // Emit user update
+      emitUserUpdate(user._id.toString(), user);
+
+      res.json({
+        message: "Purchase successful",
+        code: productCode.code,
+        product: product.name,
+      });
+    } catch (error) {
+      // If saving changes fails, throw error to be caught by outer try-catch
+      throw new Error("Failed to complete purchase: " + error.message);
+    }
+  } catch (error) {
+    console.error("Purchase error:", error);
+    res.status(400).json({ message: error.message });
+  }
+});
 
 const PORT = process.env.PORT || 5000;
 server.listen(
