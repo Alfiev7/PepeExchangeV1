@@ -136,6 +136,7 @@ const Shop = () => {
         message: "Code copied to clipboard!",
       });
     } catch (err) {
+      console.error("Error copying code:", err);
       setNotification({
         type: "error",
         message: "Failed to copy code",
