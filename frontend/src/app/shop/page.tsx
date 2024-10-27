@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import useStore from "@/store";
 import { useRouter } from "next/navigation";
+import { X } from "lucide-react";
 
 interface Product {
   _id: string;
@@ -37,13 +38,13 @@ const Shop = () => {
   const [purchaseCode, setPurchaseCode] = useState<PurchaseCode | null>(null);
   const [notification, setNotification] = useState<Notification | null>(null);
   const [user, setUser] = useState<User | null>(null);
+
   const { isAdmin } = useStore();
   const router = useRouter();
 
   useEffect(() => {
     fetchUserAndProducts();
   }, []);
-
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -96,14 +97,17 @@ const Shop = () => {
         return;
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/shop/purchase`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ productId }),
-      });
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/shop/purchase`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ productId }),
+        }
+      );
 
       const data = await response.json();
 
@@ -144,12 +148,9 @@ const Shop = () => {
     }
   };
 
-  setInterval(() => {
-    if (notification) {
-      setNotification(null);
-      setPurchaseCode(null);
-    }
-  }, 10000);
+  const closePurchasePopup = () => {
+    setPurchaseCode(null);
+  };
 
   if (loading) {
     return (
@@ -238,25 +239,33 @@ const Shop = () => {
           )}
 
           {purchaseCode && (
-            <div className="mb-6 bg-green-900 border border-green-500 rounded-lg p-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-lg font-bold mb-1">
-                    Purchase Successful!
-                  </h3>
-                  <p className="text-gray-300">
-                    Your code for {purchaseCode.product}:{" "}
-                    <span className="font-mono bg-green-800 px-2 py-1 rounded">
-                      {purchaseCode.code}
-                    </span>
-                  </p>
-                </div>
+            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+              <div className="bg-gray-800 rounded-lg p-8 max-w-md w-full mx-4 relative">
                 <button
-                  onClick={() => copyToClipboard(purchaseCode.code)}
-                  className="p-2 hover:bg-green-800 rounded-full transition-colors"
+                  onClick={closePurchasePopup}
+                  className="absolute top-2 right-2 text-gray-400 hover:text-white"
                 >
-                  <Copy className="w-5 h-5" />
+                  <X className="w-6 h-6" />
                 </button>
+                <h3 className="text-2xl font-bold mb-4 text-green-400">
+                  Purchase Successful!
+                </h3>
+                <p className="text-gray-300 mb-4">
+                  Your code for {purchaseCode.product}:
+                </p>
+                <div className="flex items-center justify-between bg-gray-700 rounded p-2 mb-4">
+                  <span className="font-mono text-lg">{purchaseCode.code}</span>
+                  <button
+                    onClick={() => copyToClipboard(purchaseCode.code)}
+                    className="p-2 hover:bg-gray-600 rounded-full transition-colors"
+                  >
+                    <Copy className="w-5 h-5" />
+                  </button>
+                </div>
+                <p className="text-sm text-gray-400">
+                  Please copy the code and save it somewhere safe. You can only
+                  view it once.
+                </p>
               </div>
             </div>
           )}
