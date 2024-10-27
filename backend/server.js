@@ -518,6 +518,7 @@ app.post("/api/shop/purchase", authenticateToken, async (req, res) => {
   try {
     const { productId } = req.body;
     const userId = req.user._id;
+    console.log(productId);
 
     // Find product and user
     const [product, user] = await Promise.all([
@@ -537,6 +538,8 @@ app.post("/api/shop/purchase", authenticateToken, async (req, res) => {
     if (userCoinBalance < product.price) {
       throw new Error(`Insufficient ${product.requiredCoin} balance`);
     }
+
+    console.log(product.name, product.price, userCoinBalance);
 
     // Find and update product code
     const productCode = await ProductCode.findOne({

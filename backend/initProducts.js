@@ -70,70 +70,70 @@ const initializeShopProducts = async () => {
     const products = [
       {
         name: "Cryptone Shark",
-        price: 1000,
-        requiredCoin: "CRYPT",
+        price: 20,
+        requiredCoin: "CRN",
         description: "Exclusive Cryptone Shark NFT",
         image: "/products/cryptone-shark.png",
       },
       {
         name: "Cryptone Whale",
-        price: 2000,
-        requiredCoin: "CRYPT",
+        price: 50,
+        requiredCoin: "CRN",
         description: "Exclusive Cryptone Whale NFT",
         image: "/products/cryptone-whale.png",
       },
       {
         name: "Solara Shark",
-        price: 1000,
+        price: 20,
         requiredCoin: "SOL",
         description: "Exclusive Solara Shark NFT",
         image: "/products/solara-shark.png",
       },
       {
         name: "Solara Whale",
-        price: 2000,
+        price: 50,
         requiredCoin: "SOL",
         description: "Exclusive Solara Whale NFT",
         image: "/products/solara-whale.png",
       },
       {
         name: "ZeroX Shark",
-        price: 1000,
+        price: 20,
         requiredCoin: "ZRX",
         description: "Exclusive ZeroX Shark NFT",
         image: "/products/zerox-shark.png",
       },
       {
         name: "ZeroX Whale",
-        price: 2000,
+        price: 50,
         requiredCoin: "ZRX",
         description: "Exclusive ZeroX Whale NFT",
         image: "/products/zerox-whale.png",
       },
       {
         name: "Mintium Shark",
-        price: 1000,
+        price: 20,
         requiredCoin: "MNT",
         description: "Exclusive Mintium Shark NFT",
         image: "/products/mintium-shark.png",
       },
       {
         name: "Mintium Whale",
-        price: 2000,
+        price: 50,
         requiredCoin: "MNT",
         description: "Exclusive Mintium Whale NFT",
         image: "/products/mintium-whale.png",
       },
       {
         name: "Polaris Shark",
-        price: 1000,
+        price: 20,
         requiredCoin: "DOT",
         description: "Exclusive Polaris Shark NFT",
         image: "/products/polaris-shark.png",
       },
       {
         name: "Polaris Whale",
-        price: 2000,
+        price: 50,
         requiredCoin: "DOT",
         description: "Exclusive Polaris Whale NFT",
         image: "/products/polaris-whale.png",
@@ -143,8 +143,8 @@ const initializeShopProducts = async () => {
     console.log("Shop products initialized");
 
     // Generate product codes
-    await generateProductCodes();
-    console.log("Product codes generated");
+    await generateProductCodes()
+    
   }
 };
 
