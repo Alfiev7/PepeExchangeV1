@@ -59,12 +59,12 @@ const Shop = () => {
       }
 
       const [userResponse, productsResponse] = await Promise.all([
-        fetch("/api/user", {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         }),
-        fetch("/api/shop/products", {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/shop/products`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -96,7 +96,7 @@ const Shop = () => {
         return;
       }
 
-      const response = await fetch("/api/shop/purchase", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/shop/purchase`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
