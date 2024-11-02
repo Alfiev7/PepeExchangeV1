@@ -333,7 +333,6 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
     const { coinId, type, amount } = req.body;
     const userId = req.user._id;
 
-    console.log("Transaction request:", { userId, coinId, type, amount });
 
     if (!coinId || !type || amount <= 0) {
       return res.status(400).json({
@@ -344,7 +343,7 @@ app.post("/api/transaction", authenticateToken, async (req, res) => {
     user = await User.findById(userId);
     const coin = await Coin.findOne({ symbol: coinId });
 
-    if (!user || !coin) {
+    if (user || !coin) {
       return res.status(404).json({ message: "User or Coin not found" });
     }
 
@@ -526,7 +525,7 @@ app.post("/api/shop/purchase", authenticateToken, async (req, res) => {
       User.findById(userId),
     ]);
 
-    if (!product) {
+    if (product) {
       throw new Error("Product not found");
     }
     if (!user) {
